@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+from pathlib import Path
 
 st.set_page_config(page_title="PageNest | The Global Bookstore", page_icon="📚", layout="wide")
 
@@ -320,6 +321,16 @@ def clear_search_state():
 st.markdown('<div class="brand">PageNest 📚</div>', unsafe_allow_html=True)
 st.markdown('<div class="tagline">THE GLOBAL BOOKSTORE · Find your next chapter.</div>', unsafe_allow_html=True)
 st.write("100 curated titles for entrance exams, university study, finance, research and data analytics.")
+
+# Add book_covers_collage.png to the same GitHub repository as this app.py file.
+# This displays the exact cover-sheet image supplied for the bookstore homepage.
+cover_sheet = Path(__file__).with_name("book_covers_collage.png")
+if cover_sheet.exists():
+    with st.expander("🖼️ View the book-cover collection supplied for PageNest", expanded=True):
+        st.image(str(cover_sheet), caption="PageNest book-cover collection preview", use_container_width=True)
+else:
+    st.info("To display your supplied book-cover image, upload it to GitHub in the same folder as app.py and name it book_covers_collage.png.")
+
 st.text_input(
     "Search all 100 books",
     key="query",
@@ -369,7 +380,7 @@ with catalogue_col:
         st.markdown(f"## Search results · {len(filtered)} catalogue match(es)")
     else:
         st.markdown("## Explore the collection")
-    st.caption("Decorative category imagery is used for catalogue cards; it may not be the exact cover edition.")
+    st.caption("Catalogue cards use subject-themed images. The supplied cover-sheet image is available above as a collection preview.")
 
     if not filtered:
         st.info("No catalogue matches. Try fewer words or search additional books online.")
