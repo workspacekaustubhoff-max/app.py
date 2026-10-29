@@ -2,11 +2,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from io import BytesIO
-
-# --------------------------------------------------
-# PAGE CONFIGURATION
-# --------------------------------------------------
 
 st.set_page_config(
     page_title="PageNest Books & Learning",
@@ -15,172 +10,136 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# CUSTOM STYLING - TEXT ONLY, NO IMAGES
-# --------------------------------------------------
-
-st.markdown("""
-<style>
-    .main-title {
-        font-size: 42px;
-        font-weight: 800;
-        text-align: center;
-        margin-bottom: 0;
-    }
-    .subtitle {
-        text-align: center;
-        font-size: 17px;
-        margin-bottom: 25px;
-    }
-    .book-label {
-        padding: 12px;
-        border: 1px solid #d9d9d9;
-        border-radius: 10px;
-        margin-bottom: 8px;
-    }
-    .price {
-        font-weight: bold;
-        font-size: 18px;
-    }
-    div.stButton > button {
-        width: 100%;
-        border-radius: 8px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --------------------------------------------------
-# BOOK DATABASE: 100 BOOKS
+# BOOK DATABASE
+# 10 BOOKS IN EACH OF 10 CATEGORIES
+# Prices are illustrative INR prices.
 # --------------------------------------------------
 
 BOOKS = [
-    # MICROECONOMICS
-    ("Principles of Microeconomics", "Microeconomics", 650),
-    ("Microeconomics", "Microeconomics", 750),
-    ("Intermediate Microeconomics", "Microeconomics", 950),
-    ("Microeconomic Theory", "Microeconomics", 1100),
-    ("Advanced Microeconomic Theory", "Microeconomics", 1250),
-    ("Managerial Economics", "Microeconomics", 700),
-    ("Game Theory for Applied Economists", "Microeconomics", 850),
-    ("Microeconomics: Theory and Applications", "Microeconomics", 800),
+    # 1. MATHEMATICS
+    ("NCERT Mathematics Class 11", "NCERT", "Mathematics", 250),
+    ("NCERT Mathematics Class 12", "NCERT", "Mathematics", 280),
+    ("Mathematics for Class 11", "R.D. Sharma", "Mathematics", 650),
+    ("Mathematics for Class 12", "R.D. Sharma", "Mathematics", 700),
+    ("Quantitative Aptitude", "R.S. Aggarwal", "Mathematics", 550),
+    ("Higher Algebra", "Hall and Knight", "Mathematics", 600),
+    ("Plane Trigonometry", "S.L. Loney", "Mathematics", 500),
+    ("Problems in Calculus of One Variable", "I.A. Maron", "Mathematics", 650),
+    ("Advanced Problems in Mathematics", "Vikas Gupta and Pankaj Joshi", "Mathematics", 750),
+    ("Mathematical Techniques for Competitive Examinations", "Soudeep Deb and Debangan Dey", "Mathematics", 650),
 
-    # MACROECONOMICS
-    ("Principles of Macroeconomics", "Macroeconomics", 650),
-    ("Macroeconomics", "Macroeconomics", 750),
-    ("Macroeconomics: A European Perspective", "Macroeconomics", 950),
-    ("Advanced Macroeconomics", "Macroeconomics", 1200),
-    ("Macroeconomics: Policy and Practice", "Macroeconomics", 900),
-    ("Monetary Theory and Policy", "Macroeconomics", 1050),
-    ("International Economics", "Macroeconomics", 850),
-    ("The Economics of Money, Banking and Financial Markets", "Macroeconomics", 1000),
+    # 2. SCIENCE
+    ("NCERT Science Class 10", "NCERT", "Science", 250),
+    ("NCERT Physics Class 11", "NCERT", "Science", 280),
+    ("NCERT Physics Class 12", "NCERT", "Science", 300),
+    ("Concepts of Physics Volume 1", "H.C. Verma", "Science", 500),
+    ("Concepts of Physics Volume 2", "H.C. Verma", "Science", 550),
+    ("NCERT Chemistry Class 11", "NCERT", "Science", 280),
+    ("NCERT Chemistry Class 12", "NCERT", "Science", 300),
+    ("Concise Inorganic Chemistry", "J.D. Lee", "Science", 850),
+    ("Organic Chemistry", "Morrison and Boyd", "Science", 950),
+    ("Trueman's Elementary Biology", "K.N. Bhatia and M.P. Tyagi", "Science", 750),
 
-    # BUSINESS STUDIES
-    ("Business Studies", "Business Studies", 500),
-    ("Business Environment", "Business Studies", 650),
-    ("Business Organisation and Management", "Business Studies", 600),
-    ("Business Policy and Strategic Management", "Business Studies", 900),
-    ("International Business", "Business Studies", 800),
-    ("Entrepreneurship: Successfully Launching New Ventures", "Business Studies", 950),
-    ("Business Communication Today", "Business Studies", 850),
-    ("Essentials of Business", "Business Studies", 700),
+    # 3. COMMERCE AND ACCOUNTING
+    ("Financial Accounting", "S.N. Maheshwari and S.K. Maheshwari", "Commerce & Accounting", 700),
+    ("Accounting Principles", "Jerry J. Weygandt and colleagues", "Commerce & Accounting", 850),
+    ("Cost Accounting", "M.N. Arora", "Commerce & Accounting", 800),
+    ("Management Accounting", "Khan and Jain", "Commerce & Accounting", 900),
+    ("Corporate Accounting", "S.N. Maheshwari", "Commerce & Accounting", 750),
+    ("Business Law", "M.C. Kuchhal", "Commerce & Accounting", 650),
+    ("Company Law", "Avtar Singh", "Commerce & Accounting", 850),
+    ("Financial Management", "I.M. Pandey", "Commerce & Accounting", 900),
+    ("Fundamentals of Financial Management", "Eugene F. Brigham and Joel F. Houston", "Commerce & Accounting", 950),
+    ("Financial Markets and Institutions", "Frederic S. Mishkin and Stanley G. Eakins", "Commerce & Accounting", 1000),
 
-    # PRINCIPLES OF MANAGEMENT
-    ("Principles of Management", "Principles of Management", 650),
-    ("Management", "Principles of Management", 850),
-    ("Fundamentals of Management", "Principles of Management", 750),
-    ("Organizational Behavior", "Principles of Management", 900),
-    ("Management: A Practical Introduction", "Principles of Management", 800),
-    ("Human Resource Management", "Principles of Management", 950),
-    ("Operations Management", "Principles of Management", 1000),
-    ("Strategic Management", "Principles of Management", 1050),
+    # 4. ECONOMICS
+    ("Principles of Microeconomics", "N. Gregory Mankiw", "Economics", 650),
+    ("Principles of Macroeconomics", "N. Gregory Mankiw", "Economics", 650),
+    ("Microeconomics", "Robert S. Pindyck and Daniel L. Rubinfeld", "Economics", 950),
+    ("Macroeconomics", "Olivier Blanchard", "Economics", 900),
+    ("Intermediate Microeconomics", "Hal R. Varian", "Economics", 850),
+    ("Advanced Macroeconomics", "David Romer", "Economics", 1100),
+    ("Managerial Economics", "Dominick Salvatore", "Economics", 800),
+    ("International Economics", "Paul Krugman, Maurice Obstfeld and Marc Melitz", "Economics", 1000),
+    ("The Economics of Money, Banking and Financial Markets", "Frederic S. Mishkin", "Economics", 950),
+    ("Indian Economy", "Ramesh Singh", "Economics", 750),
 
-    # LEGAL ASPECTS OF BUSINESS
-    ("Business Law", "Legal Aspects of Business", 700),
-    ("Legal Aspects of Business", "Legal Aspects of Business", 650),
-    ("Business and Corporate Laws", "Legal Aspects of Business", 800),
-    ("Company Law", "Legal Aspects of Business", 950),
-    ("The Legal Environment of Business", "Legal Aspects of Business", 900),
-    ("Corporate Governance", "Legal Aspects of Business", 850),
-    ("Intellectual Property Rights", "Legal Aspects of Business", 750),
-    ("Law of Contract", "Legal Aspects of Business", 800),
+    # 5. BUSINESS AND MANAGEMENT
+    ("Principles of Management", "Harold Koontz and Heinz Weihrich", "Business & Management", 700),
+    ("Management", "Stephen P. Robbins and Mary Coulter", "Business & Management", 850),
+    ("Organizational Behavior", "Stephen P. Robbins and Timothy A. Judge", "Business & Management", 950),
+    ("Marketing Management", "Philip Kotler and Kevin Lane Keller", "Business & Management", 1000),
+    ("Principles of Marketing", "Philip Kotler and Gary Armstrong", "Business & Management", 900),
+    ("Human Resource Management", "Gary Dessler", "Business & Management", 950),
+    ("Operations Management", "Jay Heizer, Barry Render and Chuck Munson", "Business & Management", 1000),
+    ("Strategic Management", "Fred R. David and Forest R. David", "Business & Management", 900),
+    ("Entrepreneurship: Successfully Launching New Ventures", "Bruce R. Barringer and R. Duane Ireland", "Business & Management", 950),
+    ("Business Communication Today", "Courtland L. Bovee and John V. Thill", "Business & Management", 800),
 
-    # FINANCIAL ACCOUNTING
-    ("Financial Accounting", "Financial Accounting", 700),
-    ("Accounting Principles", "Financial Accounting", 650),
-    ("Financial Accounting: An Introduction", "Financial Accounting", 750),
-    ("Introduction to Financial Accounting", "Financial Accounting", 850),
-    ("Cost Accounting", "Financial Accounting", 800),
-    ("Management Accounting", "Financial Accounting", 900),
-    ("Accounting for Managers", "Financial Accounting", 850),
-    ("Corporate Accounting", "Financial Accounting", 950),
+    # 6. CAT AND MBA ENTRANCE
+    ("How to Prepare for Quantitative Aptitude for CAT", "Arun Sharma", "CAT & MBA Entrance", 850),
+    ("How to Prepare for Verbal Ability and Reading Comprehension for CAT", "Arun Sharma and Meenakshi Upadhyay", "CAT & MBA Entrance", 850),
+    ("How to Prepare for Data Interpretation for CAT", "Arun Sharma", "CAT & MBA Entrance", 800),
+    ("How to Prepare for Logical Reasoning for CAT", "Arun Sharma", "CAT & MBA Entrance", 800),
+    ("Quantitative Aptitude for CAT", "Nishit K. Sinha", "CAT & MBA Entrance", 750),
+    ("Verbal Ability and Reading Comprehension for CAT", "Nishit K. Sinha", "CAT & MBA Entrance", 750),
+    ("Word Power Made Easy", "Norman Lewis", "CAT & MBA Entrance", 250),
+    ("A Modern Approach to Logical Reasoning", "R.S. Aggarwal", "CAT & MBA Entrance", 500),
+    ("How to Prepare for the GMAT", "Official GMAT Review", "CAT & MBA Entrance", 1000),
+    ("CAT Previous Years' Solved Papers", "Arihant Experts", "CAT & MBA Entrance", 450),
 
-    # BUSINESS MATHEMATICS AND STATISTICS
-    ("Business Mathematics", "Business Mathematics", 600),
-    ("Mathematics for Business and Economics", "Business Mathematics", 750),
-    ("Business Mathematics and Statistics", "Business Mathematics", 700),
-    ("Quantitative Methods for Business", "Business Mathematics", 850),
-    ("Business Statistics", "Business Mathematics", 650),
-    ("Statistics for Business and Economics", "Business Mathematics", 900),
-    ("Fundamentals of Business Statistics", "Business Mathematics", 700),
-    ("Applied Mathematics for Business", "Business Mathematics", 800),
+    # 7. JEE ENGINEERING ENTRANCE
+    ("NCERT Mathematics Class 11", "NCERT", "JEE Engineering Entrance", 250),
+    ("NCERT Mathematics Class 12", "NCERT", "JEE Engineering Entrance", 280),
+    ("Cengage Mathematics for JEE Main and Advanced", "G. Tewani", "JEE Engineering Entrance", 950),
+    ("Problems Plus in IIT Mathematics", "A. Das Gupta", "JEE Engineering Entrance", 750),
+    ("Concepts of Physics Volume 1", "H.C. Verma", "JEE Engineering Entrance", 500),
+    ("Concepts of Physics Volume 2", "H.C. Verma", "JEE Engineering Entrance", 550),
+    ("Understanding Physics", "D.C. Pandey", "JEE Engineering Entrance", 750),
+    ("Modern Approach to Chemical Calculations", "R.C. Mukherjee", "JEE Engineering Entrance", 650),
+    ("Physical Chemistry", "O.P. Tandon", "JEE Engineering Entrance", 800),
+    ("Advanced Problems in Organic Chemistry", "M.S. Chauhan", "JEE Engineering Entrance", 750),
 
-    # VERBAL, WRITTEN AND COMMUNICATION
-    ("Verbal Ability and Reading Comprehension", "Communication Skills", 550),
-    ("Word Power Made Easy", "Communication Skills", 250),
-    ("High School English Grammar and Composition", "Communication Skills", 350),
-    ("Business Communication", "Communication Skills", 600),
-    ("Written Communication", "Communication Skills", 650),
-    ("Technical Communication", "Communication Skills", 750),
-    ("The Elements of Style", "Communication Skills", 400),
-    ("English Vocabulary in Use", "Communication Skills", 600),
+    # 8. NEET MEDICAL ENTRANCE
+    ("NCERT Biology Class 11", "NCERT", "NEET Medical Entrance", 280),
+    ("NCERT Biology Class 12", "NCERT", "NEET Medical Entrance", 300),
+    ("NCERT Physics Class 11", "NCERT", "NEET Medical Entrance", 280),
+    ("NCERT Physics Class 12", "NCERT", "NEET Medical Entrance", 300),
+    ("NCERT Chemistry Class 11", "NCERT", "NEET Medical Entrance", 280),
+    ("NCERT Chemistry Class 12", "NCERT", "NEET Medical Entrance", 300),
+    ("Objective Biology for NEET", "Dinesh", "NEET Medical Entrance", 750),
+    ("Trueman's Objective Biology", "M.P. Tyagi", "NEET Medical Entrance", 700),
+    ("Concepts of Physics", "H.C. Verma", "NEET Medical Entrance", 500),
+    ("NEET Previous Years' Solved Papers", "Arihant Experts", "NEET Medical Entrance", 450),
 
-    # TECHNOLOGY, EXCEL, PYTHON AND DIGITAL BUSINESS
-    ("Excel 365 Bible", "Technology and Analytics", 950),
-    ("Microsoft Excel Step by Step", "Technology and Analytics", 800),
-    ("Excel Formulas and Functions", "Technology and Analytics", 700),
-    ("Python Crash Course", "Technology and Analytics", 850),
-    ("Automate the Boring Stuff with Python", "Technology and Analytics", 900),
-    ("Learning Python", "Technology and Analytics", 1200),
-    ("Python for Data Analysis", "Technology and Analytics", 1000),
-    ("Data Science from Scratch", "Technology and Analytics", 950),
-    ("Business Analytics", "Technology and Analytics", 900),
-    ("Data Analytics for Business", "Technology and Analytics", 850),
-    ("Digital Transformation", "Technology and Analytics", 950),
-    ("Competing in the Age of AI", "Technology and Analytics", 800),
+    # 9. UPSC AND CIVIL SERVICES
+    ("Indian Polity", "M. Laxmikanth", "UPSC & Civil Services", 850),
+    ("A Brief History of Modern India", "Spectrum / Rajiv Ahir", "UPSC & Civil Services", 600),
+    ("India's Struggle for Independence", "Bipan Chandra and colleagues", "UPSC & Civil Services", 700),
+    ("Certificate Physical and Human Geography", "G.C. Leong", "UPSC & Civil Services", 550),
+    ("Indian Economy", "Ramesh Singh", "UPSC & Civil Services", 750),
+    ("Environment", "Shankar IAS Academy", "UPSC & Civil Services", 650),
+    ("Introduction to the Constitution of India", "D.D. Basu", "UPSC & Civil Services", 800),
+    ("Oxford Student Atlas for India", "Oxford University Press", "UPSC & Civil Services", 400),
+    ("Ethics, Integrity and Aptitude", "Subba Rao and P.N. Roy Chowdhury", "UPSC & Civil Services", 650),
+    ("General Studies Manual", "Arihant Experts", "UPSC & Civil Services", 750),
 
-    # MEDIA, SOCIETY, RESEARCH AND COMPETITIVE EXAMS
-    ("Media and Society", "Media and Society", 650),
-    ("Media, Culture and Society", "Media and Society", 850),
-    ("Media and Communication Research Methods", "Media and Society", 900),
-    ("Mass Communication Theory", "Media and Society", 800),
-    ("The Sociological Imagination", "Media and Society", 700),
-    ("Research Methodology", "Research and Competitive Exams", 750),
-    ("Research Design", "Research and Competitive Exams", 900),
-    ("The Craft of Research", "Research and Competitive Exams", 800),
-    ("How to Write and Publish a Scientific Paper", "Research and Competitive Exams", 850),
-    ("Publication Manual of the APA", "Research and Competitive Exams", 1200),
-    ("Quantitative Research Methods", "Research and Competitive Exams", 950),
-    ("Qualitative Research Methods", "Research and Competitive Exams", 900),
-    ("UGC NET Commerce Guide", "Research and Competitive Exams", 700),
-    ("UGC NET Management Guide", "Research and Competitive Exams", 700),
-    ("CAT Quantitative Aptitude", "Research and Competitive Exams", 650),
-    ("CAT Verbal Ability and Reading Comprehension", "Research and Competitive Exams", 650),
-    ("GMAT Official Guide", "Research and Competitive Exams", 1100),
-    ("GRE General Test Preparation", "Research and Competitive Exams", 950),
-    ("CFA Program Curriculum", "Research and Competitive Exams", 1500),
-    ("Financial Markets and Institutions", "Research and Competitive Exams", 900),
-    ("Investment Analysis and Portfolio Management", "Research and Competitive Exams", 1000),
-    ("Corporate Finance", "Research and Competitive Exams", 950),
-    ("International Financial Management", "Research and Competitive Exams", 1050),
-    ("Principles of Marketing", "Research and Competitive Exams", 750),
-    ("Marketing Management", "Research and Competitive Exams", 950),
-    ("Consumer Behavior", "Research and Competitive Exams", 850),
-    ("Supply Chain Management", "Research and Competitive Exams", 900),
-    ("Project Management", "Research and Competitive Exams", 850),
+    # 10. OTHER COMPETITIVE EXAMS
+    ("UGC NET Commerce Guide", "Arihant Experts", "Other Competitive Exams", 700),
+    ("UGC NET Management Guide", "Trueman's", "Other Competitive Exams", 700),
+    ("NTA CUET (UG) English", "Universities Press", "Other Competitive Exams", 450),
+    ("NTA CUET (UG) General Test", "Universities Press", "Other Competitive Exams", 450),
+    ("Objective General English", "S.P. Bakshi", "Other Competitive Exams", 500),
+    ("Quantitative Aptitude for Competitive Examinations", "R.S. Aggarwal", "Other Competitive Exams", 550),
+    ("A Modern Approach to Verbal and Non-Verbal Reasoning", "R.S. Aggarwal", "Other Competitive Exams", 600),
+    ("Objective General Knowledge", "Lucent Publications", "Other Competitive Exams", 350),
+    ("GRE Prep", "The Princeton Review", "Other Competitive Exams", 900),
+    ("Official Guide to the TOEFL iBT Test", "ETS", "Other Competitive Exams", 1000),
 ]
 
-book_df = pd.DataFrame(
+df = pd.DataFrame(
     BOOKS,
-    columns=["Book Name", "Category", "Price"]
+    columns=["Book", "Author / Publisher", "Category", "Price"]
 )
 
 # --------------------------------------------------
@@ -190,280 +149,230 @@ book_df = pd.DataFrame(
 if "cart" not in st.session_state:
     st.session_state.cart = {}
 
-if "customer_name" not in st.session_state:
-    st.session_state.customer_name = ""
+if "customer" not in st.session_state:
+    st.session_state.customer = ""
 
 # --------------------------------------------------
-# HEADER
+# HEADER AND STYLING
 # --------------------------------------------------
+
+st.markdown("""
+<style>
+.main-title {
+    font-size: 42px;
+    font-weight: 800;
+    text-align: center;
+}
+.subtitle {
+    text-align: center;
+    font-size: 17px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown(
     '<div class="main-title">📚 PageNest Books & Learning</div>',
     unsafe_allow_html=True
 )
-
 st.markdown(
-    '<div class="subtitle">Your destination for commerce, business, '
-    'economics, technology and competitive exam books.</div>',
+    '<div class="subtitle">Find the right book for every subject and exam.</div>',
     unsafe_allow_html=True
 )
 
 st.divider()
 
 # --------------------------------------------------
-# NAVIGATION
+# SIDEBAR NAVIGATION
 # --------------------------------------------------
 
 page = st.sidebar.radio(
-    "Navigate",
+    "Navigation",
     [
         "Book Catalogue",
-        "Shopping Cart & Billing",
+        "Shopping Cart",
         "Book Bundles",
         "Business Calculator",
-        "About PageNest"
+        "About Us"
     ]
 )
 
-st.sidebar.divider()
-st.sidebar.metric("Books in Catalogue", len(book_df))
-st.sidebar.metric("Different Categories", book_df["Category"].nunique())
+st.sidebar.metric("Total Book Entries", len(df))
+st.sidebar.metric("Categories", df["Category"].nunique())
+st.sidebar.metric(
+    "Items in Cart",
+    sum(item["quantity"] for item in st.session_state.cart.values())
+)
 
 # --------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------
 
-def add_to_cart(book_name, price):
-    if book_name in st.session_state.cart:
-        st.session_state.cart[book_name]["quantity"] += 1
+def add_to_cart(book, author, price):
+    if book in st.session_state.cart:
+        st.session_state.cart[book]["quantity"] += 1
     else:
-        st.session_state.cart[book_name] = {
+        st.session_state.cart[book] = {
+            "author": author,
             "price": float(price),
             "quantity": 1
         }
 
 
-def cart_subtotal():
+def calculate_subtotal():
     return sum(
         item["price"] * item["quantity"]
         for item in st.session_state.cart.values()
     )
 
 
-def make_receipt(customer, items, discount_rate, gst_rate):
-    subtotal = sum(
-        item["price"] * item["quantity"]
-        for item in items.values()
-    )
-    discount = subtotal * discount_rate
-    taxable_amount = subtotal - discount
-    gst = taxable_amount * gst_rate
-    total = taxable_amount + gst
-
-    lines = [
-        "PAGENEST BOOKS & LEARNING",
-        "=" * 36,
-        f"Receipt date: {datetime.now().strftime('%d-%m-%Y %H:%M')}",
-        f"Customer: {customer or 'Walk-in Customer'}",
-        "-" * 36,
-        "ITEMS:"
-    ]
-
-    for name, item in items.items():
-        line_total = item["price"] * item["quantity"]
-        lines.append(
-            f"{name} | Qty: {item['quantity']} | "
-            f"Rs. {line_total:.2f}"
-        )
-
-    lines.extend([
-        "-" * 36,
-        f"Subtotal: Rs. {subtotal:.2f}",
-        f"Discount: Rs. {discount:.2f}",
-        f"GST estimate: Rs. {gst:.2f}",
-        f"TOTAL: Rs. {total:.2f}",
-        "=" * 36,
-        "Thank you for shopping with PageNest!"
-    ])
-
-    return "\n".join(lines)
-
-
 # --------------------------------------------------
-# PAGE 1: BOOK CATALOGUE
+# BOOK CATALOGUE
 # --------------------------------------------------
 
 if page == "Book Catalogue":
 
-    st.header("Book Catalogue")
+    st.header("Explore the Book Catalogue")
+
     st.write(
-        "Search for books by title or filter by category and price. "
-        "All books are displayed as text labels."
+        "Choose a subject or examination category. Each category "
+        "contains 10 book entries."
     )
 
-    col1, col2, col3 = st.columns([2, 1, 1])
+    category_counts = df.groupby("Category").size().reset_index(
+        name="Books"
+    )
+    st.dataframe(category_counts, use_container_width=True, hide_index=True)
+
+    col1, col2 = st.columns([2, 1])
 
     with col1:
-        search_term = st.text_input(
-            "Search by book name",
-            placeholder="e.g. Microeconomics, Excel, Python..."
+        search = st.text_input(
+            "Search books or authors",
+            placeholder="Try 'Mankiw', 'Physics', 'CAT'..."
         )
 
     with col2:
-        categories = ["All Categories"] + sorted(
-            book_df["Category"].unique().tolist()
+        category_options = ["All Categories"] + sorted(
+            df["Category"].unique().tolist()
         )
         selected_category = st.selectbox(
-            "Category",
-            categories
+            "Select category",
+            category_options
         )
 
-    with col3:
-        max_price = st.number_input(
-            "Maximum price (₹)",
-            min_value=0,
-            max_value=100000,
-            value=2000,
-            step=100
-        )
+    max_price = st.slider(
+        "Maximum book price (₹)",
+        min_value=0,
+        max_value=2000,
+        value=2000,
+        step=50
+    )
 
-    filtered_df = book_df.copy()
-
-    if search_term:
-        filtered_df = filtered_df[
-            filtered_df["Book Name"].str.contains(
-                search_term,
-                case=False,
-                na=False
-            )
-        ]
+    results = df.copy()
 
     if selected_category != "All Categories":
-        filtered_df = filtered_df[
-            filtered_df["Category"] == selected_category
-        ]
+        results = results[results["Category"] == selected_category]
 
-    filtered_df = filtered_df[
-        filtered_df["Price"] <= max_price
-    ]
-
-    st.write(f"**{len(filtered_df)} books found**")
-
-    sort_option = st.selectbox(
-        "Sort books",
-        ["Name: A to Z", "Price: Low to High", "Price: High to Low"]
-    )
-
-    if sort_option == "Name: A to Z":
-        filtered_df = filtered_df.sort_values("Book Name")
-    elif sort_option == "Price: Low to High":
-        filtered_df = filtered_df.sort_values("Price")
-    else:
-        filtered_df = filtered_df.sort_values(
-            "Price",
-            ascending=False
+    if search:
+        mask = (
+            results["Book"].str.contains(search, case=False, na=False)
+            | results["Author / Publisher"].str.contains(
+                search, case=False, na=False
+            )
+            | results["Category"].str.contains(search, case=False, na=False)
         )
+        results = results[mask]
 
-    if filtered_df.empty:
-        st.warning("No books match your search. Try different filters.")
+    results = results[results["Price"] <= max_price]
+
+    sort_choice = st.selectbox(
+        "Sort results",
+        ["Book name", "Price: Low to High", "Price: High to Low"]
+    )
+
+    if sort_choice == "Price: Low to High":
+        results = results.sort_values("Price")
+    elif sort_choice == "Price: High to Low":
+        results = results.sort_values("Price", ascending=False)
     else:
-        for _, book in filtered_df.iterrows():
-            with st.container(border=True):
-                col1, col2, col3 = st.columns([5, 2, 1])
+        results = results.sort_values("Book")
 
-                with col1:
-                    st.markdown(f"**{book['Book Name']}**")
-                    st.caption(book["Category"])
+    st.write(f"**{len(results)} books found**")
 
-                with col2:
-                    st.markdown(
-                        f"<div class='price'>₹{book['Price']:.2f}</div>",
-                        unsafe_allow_html=True
+    for _, book in results.iterrows():
+        with st.container(border=True):
+            left, middle, right = st.columns([5, 2, 1])
+
+            with left:
+                st.markdown(f"**{book['Book']}**")
+                st.caption(
+                    f"Author/Publisher: {book['Author / Publisher']}"
+                )
+                st.caption(f"Category: {book['Category']}")
+
+            with middle:
+                st.markdown(f"### ₹{book['Price']:.0f}")
+
+            with right:
+                if st.button("Add", key=f"add_{book.name}"):
+                    add_to_cart(
+                        book["Book"],
+                        book["Author / Publisher"],
+                        book["Price"]
                     )
+                    st.toast(f"Added: {book['Book']}")
 
-                with col3:
-                    if st.button(
-                        "Add",
-                        key=f"add_{book['Book Name']}"
-                    ):
-                        add_to_cart(
-                            book["Book Name"],
-                            book["Price"]
-                        )
-                        st.toast(
-                            f"Added {book['Book Name']} to your cart!"
-                        )
-
-    st.divider()
     st.caption(
-        "Prices are illustrative catalogue prices, not verified current "
-        "market prices. Check the edition, ISBN and availability before "
-        "purchasing."
+        "Titles, author details and prices are catalogue suggestions. "
+        "Verify exact editions, ISBNs and current prices before purchase."
     )
 
 # --------------------------------------------------
-# PAGE 2: CART AND BILLING
+# SHOPPING CART AND BILLING
 # --------------------------------------------------
 
-elif page == "Shopping Cart & Billing":
+elif page == "Shopping Cart":
 
-    st.header("Shopping Cart & Billing")
+    st.header("Shopping Cart")
 
-    st.session_state.customer_name = st.text_input(
+    st.session_state.customer = st.text_input(
         "Customer name",
-        value=st.session_state.customer_name
+        value=st.session_state.customer
     )
 
     if not st.session_state.cart:
-        st.info(
-            "Your cart is empty. Open Book Catalogue to add books."
-        )
+        st.info("Your cart is empty. Add books from the catalogue.")
 
     else:
-        cart_rows = []
+        for book, item in list(st.session_state.cart.items()):
+            with st.container(border=True):
+                col1, col2, col3, col4 = st.columns([4, 2, 2, 1])
 
-        for name, item in st.session_state.cart.items():
-            cart_rows.append({
-                "Book Name": name,
-                "Unit Price (₹)": item["price"],
-                "Quantity": item["quantity"],
-                "Total (₹)": item["price"] * item["quantity"]
-            })
+                with col1:
+                    st.write(f"**{book}**")
+                    st.caption(item["author"])
 
-        cart_df = pd.DataFrame(cart_rows)
-        st.dataframe(
-            cart_df,
-            use_container_width=True,
-            hide_index=True
-        )
+                with col2:
+                    st.write(f"₹{item['price']:.2f} each")
 
-        st.subheader("Update quantities")
+                with col3:
+                    quantity = st.number_input(
+                        "Quantity",
+                        min_value=1,
+                        max_value=99,
+                        value=item["quantity"],
+                        key=f"quantity_{book}"
+                    )
+                    st.session_state.cart[book]["quantity"] = quantity
 
-        for name, item in list(st.session_state.cart.items()):
-            col1, col2, col3 = st.columns([5, 2, 2])
-
-            with col1:
-                st.write(name)
-
-            with col2:
-                new_quantity = st.number_input(
-                    "Quantity",
-                    min_value=1,
-                    max_value=99,
-                    value=item["quantity"],
-                    key=f"qty_{name}"
-                )
-
-                st.session_state.cart[name]["quantity"] = new_quantity
-
-            with col3:
-                if st.button("Remove", key=f"remove_{name}"):
-                    del st.session_state.cart[name]
-                    st.rerun()
+                with col4:
+                    if st.button("Remove", key=f"remove_{book}"):
+                        del st.session_state.cart[book]
+                        st.rerun()
 
         st.divider()
 
-        subtotal = cart_subtotal()
+        subtotal = calculate_subtotal()
 
         col1, col2 = st.columns(2)
 
@@ -472,8 +381,7 @@ elif page == "Shopping Cart & Billing":
                 "Discount (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=0.0,
-                step=1.0
+                value=0.0
             )
 
         with col2:
@@ -481,139 +389,146 @@ elif page == "Shopping Cart & Billing":
                 "Estimated GST (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=0.0,
-                step=1.0
+                value=0.0
             )
 
         discount = subtotal * discount_percent / 100
-        taxable_amount = subtotal - discount
-        gst = taxable_amount * gst_percent / 100
-        total = taxable_amount + gst
+        taxable = subtotal - discount
+        gst = taxable * gst_percent / 100
+        total = taxable + gst
 
         st.subheader("Bill Summary")
 
         c1, c2, c3, c4 = st.columns(4)
-
         c1.metric("Subtotal", f"₹{subtotal:,.2f}")
         c2.metric("Discount", f"₹{discount:,.2f}")
         c3.metric("Estimated GST", f"₹{gst:,.2f}")
-        c4.metric("Final Total", f"₹{total:,.2f}")
+        c4.metric("Total", f"₹{total:,.2f}")
 
-        st.caption(
-            "GST is an estimate controlled by you. Confirm the applicable "
-            "tax treatment and rate before using this as a real invoice."
-        )
+        receipt = [
+            "PAGENEST BOOKS & LEARNING",
+            "=" * 40,
+            f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M')}",
+            f"Customer: {st.session_state.customer or 'Walk-in Customer'}",
+            "-" * 40
+        ]
 
-        receipt = make_receipt(
-            st.session_state.customer_name,
-            st.session_state.cart,
-            discount_percent / 100,
-            gst_percent / 100
-        )
+        for book, item in st.session_state.cart.items():
+            line_total = item["price"] * item["quantity"]
+            receipt.append(
+                f"{book} | Qty: {item['quantity']} | "
+                f"₹{line_total:.2f}"
+            )
+
+        receipt.extend([
+            "-" * 40,
+            f"Subtotal: ₹{subtotal:.2f}",
+            f"Discount: ₹{discount:.2f}",
+            f"Estimated GST: ₹{gst:.2f}",
+            f"Total: ₹{total:.2f}",
+            "=" * 40,
+            "Thank you for shopping at PageNest!"
+        ])
+
+        receipt_text = "\n".join(receipt)
 
         st.download_button(
-            "Download Receipt (.txt)",
-            data=receipt,
+            "Download Receipt",
+            data=receipt_text,
             file_name="pagenest_receipt.txt",
             mime="text/plain"
         )
 
-        if st.button("Clear Entire Cart"):
+        if st.button("Clear Cart"):
             st.session_state.cart = {}
             st.rerun()
 
+        st.caption(
+            "GST is an estimate. Confirm the applicable rate before "
+            "using this calculation for an actual sale."
+        )
+
 # --------------------------------------------------
-# PAGE 3: BOOK BUNDLES
+# BOOK BUNDLES
 # --------------------------------------------------
 
 elif page == "Book Bundles":
 
-    st.header("Curated Book Bundles")
-    st.write("Explore suggested reading bundles for students and learners.")
+    st.header("Study Bundles")
 
     bundles = {
-        "Economics Starter Bundle": [
+        "School Mathematics": [
+            "NCERT Mathematics Class 11",
+            "NCERT Mathematics Class 12",
+            "Quantitative Aptitude"
+        ],
+        "Science Foundation": [
+            "NCERT Science Class 10",
+            "NCERT Physics Class 11",
+            "NCERT Chemistry Class 11"
+        ],
+        "Commerce Starter": [
+            "Financial Accounting",
+            "Business Law",
+            "Financial Management"
+        ],
+        "Economics Starter": [
             "Principles of Microeconomics",
             "Principles of Macroeconomics",
-            "Managerial Economics"
+            "Indian Economy"
         ],
-        "Business Management Bundle": [
-            "Principles of Management",
-            "Organizational Behavior",
-            "Strategic Management"
+        "CAT Preparation": [
+            "How to Prepare for Quantitative Aptitude for CAT",
+            "How to Prepare for Verbal Ability and Reading Comprehension for CAT",
+            "How to Prepare for Data Interpretation for CAT"
         ],
-        "Accounting and Finance Bundle": [
-            "Financial Accounting",
-            "Management Accounting",
-            "Corporate Finance"
-        ],
-        "Excel and Python Bundle": [
-            "Microsoft Excel Step by Step",
-            "Python Crash Course",
-            "Python for Data Analysis"
-        ],
-        "Research Skills Bundle": [
-            "Research Methodology",
-            "The Craft of Research",
-            "How to Write and Publish a Scientific Paper"
-        ],
-        "Competitive Exam Bundle": [
-            "UGC NET Commerce Guide",
-            "CAT Quantitative Aptitude",
-            "CAT Verbal Ability and Reading Comprehension"
+        "UPSC Foundation": [
+            "Indian Polity",
+            "A Brief History of Modern India",
+            "Indian Economy"
         ]
     }
 
     for bundle_name, titles in bundles.items():
-        available_titles = book_df[
-            book_df["Book Name"].isin(titles)
-        ]
+        bundle_df = df[df["Book"].isin(titles)]
 
-        bundle_price = available_titles["Price"].sum()
-        bundle_discount = bundle_price * 0.10
-        final_price = bundle_price - bundle_discount
+        # Use the first matching entry for each selected title.
+        bundle_df = bundle_df.drop_duplicates(subset=["Book"])
+        subtotal = bundle_df["Price"].sum()
+        bundle_price = subtotal * 0.90
 
         with st.container(border=True):
             st.subheader(bundle_name)
 
-            for _, row in available_titles.iterrows():
+            for _, row in bundle_df.iterrows():
                 st.write(
-                    f"• {row['Book Name']} — ₹{row['Price']:.2f}"
+                    f"• {row['Book']} — ₹{row['Price']:.0f}"
                 )
 
-            st.write(f"Regular total: ₹{bundle_price:.2f}")
-            st.write("Bundle discount: 10%")
-            st.markdown(f"**Bundle price: ₹{final_price:.2f}**")
+            st.write(f"Regular total: ₹{subtotal:.0f}")
+            st.markdown(f"**Illustrative bundle price: ₹{bundle_price:.0f}**")
 
-            if st.button(
-                "Add Bundle to Cart",
-                key=f"bundle_{bundle_name}"
-            ):
-                for _, row in available_titles.iterrows():
-                    add_to_cart(row["Book Name"], row["Price"])
+            if st.button("Add Bundle", key=f"bundle_{bundle_name}"):
+                for _, row in bundle_df.iterrows():
+                    add_to_cart(
+                        row["Book"],
+                        row["Author / Publisher"],
+                        row["Price"]
+                    )
+                st.toast(f"Added {bundle_name} to cart.")
 
-                st.toast(
-                    f"{bundle_name} books added to your cart."
-                )
-
-    st.caption(
-        "Bundle discounts are illustrative. The cart bill applies any "
-        "additional discount you choose."
-    )
+    st.caption("Bundle prices show a sample 10% discount.")
 
 # --------------------------------------------------
-# PAGE 4: BUSINESS CALCULATOR
+# BUSINESS CALCULATOR
 # --------------------------------------------------
 
 elif page == "Business Calculator":
 
     st.header("Business Calculator")
-    st.write(
-        "Calculate totals, discounts, taxes and profit margins."
-    )
 
-    calculation_type = st.selectbox(
-        "Choose calculation",
+    mode = st.selectbox(
+        "Select calculator",
         [
             "Basic Calculator",
             "Discount Calculator",
@@ -622,15 +537,10 @@ elif page == "Business Calculator":
         ]
     )
 
-    if calculation_type == "Basic Calculator":
+    if mode == "Basic Calculator":
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            a = st.number_input("First number", value=0.0)
-
-        with col2:
-            b = st.number_input("Second number", value=0.0)
+        a = st.number_input("First number", value=0.0)
+        b = st.number_input("Second number", value=0.0)
 
         operation = st.selectbox(
             "Operation",
@@ -639,123 +549,100 @@ elif page == "Business Calculator":
 
         if st.button("Calculate"):
             if operation == "Add":
-                result = a + b
-                st.success(f"Result: {result:.2f}")
+                st.success(f"Result: {a + b:.2f}")
             elif operation == "Subtract":
-                result = a - b
-                st.success(f"Result: {result:.2f}")
+                st.success(f"Result: {a - b:.2f}")
             elif operation == "Multiply":
-                result = a * b
-                st.success(f"Result: {result:.2f}")
+                st.success(f"Result: {a * b:.2f}")
             elif operation == "Divide":
                 if b == 0:
                     st.error("Cannot divide by zero.")
                 else:
                     st.success(f"Result: {a / b:.2f}")
 
-    elif calculation_type == "Discount Calculator":
+    elif mode == "Discount Calculator":
 
         price = st.number_input(
-            "Original price (₹)",
-            min_value=0.0,
-            value=1000.0
+            "Original price (₹)", min_value=0.0, value=1000.0
+        )
+        discount = st.number_input(
+            "Discount (%)", min_value=0.0, max_value=100.0, value=10.0
         )
 
-        discount_rate = st.number_input(
-            "Discount (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=10.0
-        )
+        saving = price * discount / 100
+        st.metric("You save", f"₹{saving:.2f}")
+        st.metric("Final price", f"₹{price - saving:.2f}")
 
-        discount_amount = price * discount_rate / 100
-        final_price = price - discount_amount
-
-        st.metric("Discount amount", f"₹{discount_amount:.2f}")
-        st.metric("Price after discount", f"₹{final_price:.2f}")
-
-    elif calculation_type == "GST Calculator":
+    elif mode == "GST Calculator":
 
         amount = st.number_input(
-            "Amount before GST (₹)",
-            min_value=0.0,
-            value=1000.0
+            "Price before GST (₹)", min_value=0.0, value=1000.0
+        )
+        rate = st.number_input(
+            "GST (%)", min_value=0.0, max_value=100.0, value=18.0
         )
 
-        tax_rate = st.number_input(
-            "GST rate (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=18.0
-        )
+        tax = amount * rate / 100
+        st.metric("GST amount", f"₹{tax:.2f}")
+        st.metric("Total price", f"₹{amount + tax:.2f}")
 
-        tax_amount = amount * tax_rate / 100
-
-        st.metric("GST amount", f"₹{tax_amount:.2f}")
-        st.metric("Total including GST", f"₹{amount + tax_amount:.2f}")
-
-    elif calculation_type == "Profit Margin Calculator":
+    elif mode == "Profit Margin Calculator":
 
         cost = st.number_input(
-            "Cost price (₹)",
-            min_value=0.0,
-            value=500.0
+            "Cost price (₹)", min_value=0.0, value=500.0
+        )
+        selling = st.number_input(
+            "Selling price (₹)", min_value=0.0, value=700.0
         )
 
-        selling_price = st.number_input(
-            "Selling price (₹)",
-            min_value=0.0,
-            value=700.0
-        )
-
-        profit = selling_price - cost
-        margin = (
-            profit / selling_price * 100
-            if selling_price > 0 else 0
-        )
+        profit = selling - cost
+        margin = profit / selling * 100 if selling else 0
 
         st.metric("Profit / Loss", f"₹{profit:.2f}")
         st.metric("Profit margin", f"{margin:.2f}%")
 
 # --------------------------------------------------
-# PAGE 5: ABOUT
+# ABOUT US
 # --------------------------------------------------
 
-elif page == "About PageNest":
+elif page == "About Us":
 
     st.header("About PageNest Books & Learning")
 
     st.write("""
-    PageNest Books & Learning is a text-based bookstore catalogue concept
-    designed for commerce, management, economics, finance, technology,
-    research and competitive examination books.
+    PageNest is a text-based bookstore catalogue designed for learners,
+    students and competitive-exam candidates.
 
-    The website helps users:
-    - Browse books by category.
-    - Search titles and filter by price.
-    - Add books to a shopping cart.
-    - Calculate discounts and estimated taxes.
-    - Explore curated study bundles.
-    - Generate and download a basic receipt.
-    - Use simple business calculators.
+    Our categories cover:
+    - Mathematics
+    - Science
+    - Commerce and accounting
+    - Economics
+    - Business and management
+    - CAT and MBA entrance
+    - JEE engineering entrance
+    - NEET medical entrance
+    - UPSC and civil services
+    - Other competitive examinations
     """)
 
-    st.subheader("Subjects Covered")
+    st.subheader("Catalogue Overview")
 
-    subject_list = sorted(book_df["Category"].unique().tolist())
+    overview = (
+        df.groupby("Category")
+        .agg(
+            Number_of_Books=("Book", "count"),
+            Lowest_Price=("Price", "min"),
+            Highest_Price=("Price", "max")
+        )
+        .reset_index()
+    )
 
-    for subject in subject_list:
-        st.write(f"• {subject}")
-
-    st.subheader("Catalogue Information")
-
-    st.write(f"Total book entries: {len(book_df)}")
-    st.write(f"Categories: {book_df['Category'].nunique()}")
+    st.dataframe(overview, use_container_width=True, hide_index=True)
 
     st.caption(
-        "This is a demonstration bookstore. Book titles and prices should "
-        "be checked against publishers, editions, ISBNs and sellers before "
-        "being used for actual sales."
+        "This is a demonstration catalogue. Confirm editions, publishers, "
+        "ISBNs and prices before listing books for sale."
     )
 
 # --------------------------------------------------
@@ -763,7 +650,6 @@ elif page == "About PageNest":
 # --------------------------------------------------
 
 st.divider()
-
 st.markdown(
     "<center>📚 PageNest Books & Learning | "
     "Learn • Explore • Grow</center>",
