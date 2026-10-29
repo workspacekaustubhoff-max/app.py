@@ -132,6 +132,42 @@ RAW_BOOKS = [
 ("Research Design","John W. Creswell and J. David Creswell","Programming & Research",999,4),
 ("The Craft of Research","Wayne C. Booth and others","Programming & Research",699,5),
 ("Research Methodology","C. R. Kothari","Programming & Research",599,7),
+# Popular bestsellers and widely read classics
+("Rich Dad Poor Dad","Robert T. Kiyosaki","Personal Development & Fiction",399,10),
+("Ikigai","Héctor García and Francesc Miralles","Personal Development & Fiction",299,10),
+("Atomic Habits","James Clear","Personal Development & Fiction",499,10),
+("The Psychology of Money","Morgan Housel","Personal Development & Fiction",399,10),
+("The Alchemist","Paulo Coelho","Personal Development & Fiction",299,9),
+("The 7 Habits of Highly Effective People","Stephen R. Covey","Personal Development & Fiction",499,7),
+("How to Win Friends and Influence People","Dale Carnegie","Personal Development & Fiction",299,9),
+("Think and Grow Rich","Napoleon Hill","Personal Development & Fiction",249,8),
+("The Subtle Art of Not Giving a F*ck","Mark Manson","Personal Development & Fiction",399,8),
+("Deep Work","Cal Newport","Personal Development & Fiction",399,7),
+("The 48 Laws of Power","Robert Greene","Personal Development & Fiction",599,6),
+("The Power of Your Subconscious Mind","Joseph Murphy","Personal Development & Fiction",199,8),
+("The Four Agreements","Don Miguel Ruiz","Personal Development & Fiction",299,6),
+("Man's Search for Meaning","Viktor E. Frankl","Personal Development & Fiction",299,7),
+("Sapiens: A Brief History of Humankind","Yuval Noah Harari","Personal Development & Fiction",599,7),
+("Homo Deus","Yuval Noah Harari","Personal Development & Fiction",599,5),
+("The Kite Runner","Khaled Hosseini","Personal Development & Fiction",399,6),
+("A Thousand Splendid Suns","Khaled Hosseini","Personal Development & Fiction",399,6),
+("1984","George Orwell","Personal Development & Fiction",249,8),
+("Animal Farm","George Orwell","Personal Development & Fiction",199,8),
+("The Great Gatsby","F. Scott Fitzgerald","Personal Development & Fiction",199,7),
+("To Kill a Mockingbird","Harper Lee","Personal Development & Fiction",299,6),
+("The Book Thief","Markus Zusak","Personal Development & Fiction",399,5),
+("The Silent Patient","Alex Michaelides","Personal Development & Fiction",399,6),
+("The Midnight Library","Matt Haig","Personal Development & Fiction",399,6),
+("The 5 AM Club","Robin Sharma","Personal Development & Fiction",399,7),
+("Can't Hurt Me","David Goggins","Personal Development & Fiction",499,5),
+("Start With Why","Simon Sinek","Business & Management",399,6),
+("Zero to One","Peter Thiel and Blake Masters","Business & Management",399,7),
+("The 4-Hour Workweek","Timothy Ferriss","Business & Management",499,5),
+("The Millionaire Next Door","Thomas J. Stanley and William D. Danko","Accounting & Finance",399,5),
+("Principles: Life and Work","Ray Dalio","Business & Management",699,4),
+("The Hard Thing About Hard Things","Ben Horowitz","Business & Management",499,5),
+("Shoe Dog","Phil Knight","Business & Management",499,5),
+("The Design of Everyday Things","Don Norman","Science & Technology",499,4),
 ]
 BOOKS = [{"id":i+1,"title":r[0],"author":r[1],"category":r[2],"price":r[3],"stock":r[4]} for i,r in enumerate(RAW_BOOKS)]
 PAGES = ["Catalogue","Book Bundles","Shopping Cart","Checkout","Find a Book"]
@@ -235,6 +271,7 @@ def render_book_card(book,prefix="book"):
                 st.session_state.find_book_title=book["title"]
                 go("Find a Book")
 
+```python
 # ----------------------- PDF INVOICE -----------------------
 def create_invoice_pdf(order, cart_snapshot):
     """Create a clean A4 invoice with supported currency text and non-overlapping totals."""
@@ -435,6 +472,39 @@ elif availability=="Out of Stock": filtered=[b for b in filtered if b["stock"]==
 # ----------------------- CATALOGUE PAGE -----------------------
 if st.session_state.page=="Catalogue":
     st.markdown("## Explore the Catalogue")
+
+    # Featured bestseller banners. Cover images are retrieved through the same
+    # Google Books / Open Library lookup used by the catalogue cards.
+    st.markdown("### ⭐ Featured Bestsellers")
+    featured_titles = [
+        ("Rich Dad Poor Dad", "Build your financial mindset", "Money & Personal Finance"),
+        ("Ikigai", "Discover your reason for being", "Mindfulness & Wellbeing"),
+        ("Atomic Habits", "Small habits. Remarkable results.", "Habits & Productivity"),
+        ("The Psychology of Money", "Understand how people think about money", "Money & Behaviour"),
+    ]
+    featured_cols = st.columns(4)
+    for featured_col, (featured_title, tagline, banner_label) in zip(featured_cols, featured_titles):
+        featured_book = next((b for b in BOOKS if b["title"] == featured_title), None)
+        with featured_col:
+            with st.container(border=True):
+                if featured_book:
+                    featured_cover = book_cover(featured_book["title"], featured_book["author"])
+                    if featured_cover:
+                        st.image(featured_cover, use_container_width=True)
+                    else:
+                        st.markdown('<div style="height:150px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#17345E,#3268A8);border-radius:10px;color:white;font-size:36px">📚</div>', unsafe_allow_html=True)
+                    st.markdown(f"**{featured_title}**")
+                    st.caption(tagline)
+                    st.markdown(f"**₹{featured_book['price']:,}** · {banner_label}")
+                    if st.button("Shop this bestseller", key=f"feature_{featured_book['id']}", use_container_width=True):
+                        if st.session_state.cart.get(featured_book["id"], 0) + 1 <= featured_book["stock"]:
+                            st.session_state.cart[featured_book["id"]] = st.session_state.cart.get(featured_book["id"], 0) + 1
+                            st.toast(f"{featured_title} added to your cart")
+                            st.rerun()
+                        else:
+                            st.warning("Maximum demo stock reached.")
+
+    st.markdown("### Browse All Books")
     st.caption(f"Showing {len(filtered)} books.")
     sort_by=st.selectbox("Sort by",["Recommended","Price: Low to High","Price: High to Low","Title A–Z"],key="sort_catalogue")
     if sort_by=="Price: Low to High": filtered.sort(key=lambda b:b["price"])
