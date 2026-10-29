@@ -1,939 +1,959 @@
 
 import streamlit as st
-import urllib.request
 import urllib.parse
+import urllib.request
 import json
-import difflib
-import csv
-import io
-from datetime import datetime
+import re
+from difflib import SequenceMatcher
+from datetime import date, timedelta
+
+# ============================================================
+# PAGENEST | BOOKS & LEARNING
+# Complete Streamlit bookstore application
+# ============================================================
 
 st.set_page_config(
     page_title="PageNest | Books & Learning",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# =====================================================
-# 1. CLEAN, HIGH-CONTRAST DESIGN
-# =====================================================
+# ------------------------- DESIGN ----------------------------
 
 st.markdown("""
 <style>
-:root {
-    --bg: #F4F6FA;
-    --surface: #FFFFFF;
-    --sidebar: #EAF0F8;
-    --text: #202938;
-    --muted: #566477;
-    --blue: #2457C5;
-    --blue-hover: #19449E;
-    --green: #18794E;
-    --border: #DCE3ED;
-}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+}
 .stApp {
-    background: var(--bg);
-    color: var(--text);
+    background: #F5F7FB;
+    color: #172033;
 }
-
+header[data-testid="stHeader"] {
+    background: transparent;
+}
 .block-container {
-    max-width: 1500px;
     padding-top: 1.5rem;
     padding-bottom: 3rem;
+    max-width: 1500px;
 }
-
-[data-testid="stSidebar"] {
-    background: var(--sidebar);
-    border-right: 1px solid var(--border);
+h1, h2, h3 {
+    color: #172033;
 }
-
-[data-testid="stSidebar"] * {
-    color: var(--text);
+.hero {
+    background: linear-gradient(120deg, #12264A 0%, #234C83 100%);
+    padding: 36px;
+    border-radius: 20px;
+    color: white;
+    margin-bottom: 24px;
 }
-
-h1, h2, h3, h4, p, label,
-[data-testid="stMarkdownContainer"] {
-    color: var(--text);
+.hero h1 {
+    font-family: 'Playfair Display', serif;
+    color: white;
+    font-size: 42px;
+    margin-bottom: 8px;
 }
-
-[data-testid="stCaptionContainer"] p {
-    color: var(--muted) !important;
+.hero p {
+    color: #E4ECFA;
+    font-size: 16px;
+    margin-bottom: 0;
 }
-
-/* Clear, readable input labels */
-[data-testid="stWidgetLabel"] p,
-[data-testid="stWidgetLabel"] label,
-.stTextInput label,
-.stSelectbox label,
-.stSlider label,
-.stNumberInput label,
-.stRadio label,
-.stCheckbox label {
-    color: #202938 !important;
-    font-weight: 600 !important;
+.section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 27px;
+    font-weight: 700;
+    margin-top: 14px;
+    margin-bottom: 12px;
 }
-
-/* White input boxes with dark text */
-div[data-baseweb="input"] input,
-div[data-baseweb="textarea"] textarea {
-    background: #FFFFFF !important;
-    color: #202938 !important;
-    -webkit-text-fill-color: #202938 !important;
-    border: 1px solid #BCC8D8 !important;
-    border-radius: 8px !important;
+.book-card {
+    background: white;
+    border: 1px solid #E3E8F1;
+    border-radius: 16px;
+    padding: 14px;
+    min-height: 145px;
+    margin-bottom: 6px;
 }
-
-div[data-baseweb="select"] > div {
-    background: #FFFFFF !important;
-    color: #202938 !important;
-    border: 1px solid #BCC8D8 !important;
-    border-radius: 8px !important;
-}
-
-div[data-baseweb="select"] * {
-    color: #202938 !important;
-}
-
-/* Buttons */
-div.stButton > button,
-div.stDownloadButton > button,
-div.stLinkButton > a {
-    background: var(--blue) !important;
-    color: #FFFFFF !important;
-    border: 1px solid var(--blue) !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
+.book-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #172033;
+    line-height: 1.4;
     min-height: 40px;
 }
-
-div.stButton > button:hover,
-div.stDownloadButton > button:hover,
-div.stLinkButton > a:hover {
-    background: var(--blue-hover) !important;
-    border-color: var(--blue-hover) !important;
-    color: #FFFFFF !important;
+.book-author {
+    color: #65718A;
+    font-size: 12px;
+    min-height: 32px;
 }
-
-/* Cards */
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #FFFFFF;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 5px;
+.book-category {
+    color: #2857A4;
+    background: #EAF1FF;
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    margin: 5px 0;
 }
-
-[data-testid="stImage"] img {
+.book-price {
+    font-size: 19px;
+    font-weight: 700;
+    color: #163C78;
+    margin-top: 6px;
+}
+.metric-card {
+    background: white;
+    border: 1px solid #E3E8F1;
+    border-radius: 14px;
+    padding: 16px;
+}
+.metric-label {
+    color: #65718A;
+    font-size: 13px;
+}
+.metric-value {
+    font-size: 25px;
+    font-weight: 700;
+    color: #172033;
+}
+div.stButton > button {
+    background: #2458A6;
+    color: white;
+    border: 0;
+    border-radius: 9px;
+    font-weight: 600;
+    min-height: 40px;
+}
+div.stButton > button:hover {
+    background: #173D79;
+    color: white;
+    border: 0;
+}
+div[data-testid="stSidebar"] {
+    background: #EAF0F8;
+}
+div[data-testid="stSidebar"] h2,
+div[data-testid="stSidebar"] h3 {
+    color: #172033;
+}
+div[data-testid="stImage"] img {
     border-radius: 8px;
 }
-
-/* Metrics */
-[data-testid="stMetric"] {
-    background: #FFFFFF;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-}
-
-[data-testid="stMetricLabel"] {
-    color: #566477 !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: #202938 !important;
-}
-
-/* Tabs */
-button[data-baseweb="tab"] {
-    color: #374151 !important;
-}
-
-button[data-baseweb="tab"][aria-selected="true"] {
-    color: var(--blue) !important;
-    border-bottom-color: var(--blue) !important;
-}
-
-/* Price and stock */
-.book-price {
-    color: #202938;
-    font-size: 1.15rem;
-    font-weight: 750;
-}
-
-.book-stock {
-    color: #18794E;
-    font-size: 0.88rem;
-    font-weight: 600;
-}
-
-.book-unavailable {
-    color: #9A4D13;
-    font-size: 0.88rem;
-    font-weight: 600;
-}
-
-/* Order total */
-.order-total {
-    background: #FFFFFF;
-    border: 2px solid #2457C5;
-    border-radius: 12px;
-    padding: 20px;
-    color: #202938;
-}
-
-.order-total .amount {
-    color: #19449E;
-    font-size: 2rem;
-    font-weight: 800;
-}
-
-hr {
-    border-color: #DCE3ED;
-}
-
 a {
-    color: #2457C5 !important;
+    color: #2458A6;
 }
-
+.footer {
+    background: #12264A;
+    color: #E4ECFA;
+    padding: 22px;
+    border-radius: 14px;
+    text-align: center;
+    margin-top: 36px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# 2. CATALOGUE
-# =====================================================
+# ----------------------- BOOK CATALOGUE ----------------------
+# Prices are illustrative INR listing prices.
+# Stock values are demo values; connect a database for live inventory.
 
 RAW_BOOKS = [
-# Mathematics
-("Mathematics","NCERT Mathematics Class 11","NCERT",180,"school maths",1,2),
-("Mathematics","NCERT Mathematics Class 12","NCERT",210,"school maths",1,2),
-("Mathematics","Higher Engineering Mathematics","B. S. Grewal",850,"engineering maths",1,4),
-("Mathematics","Business Mathematics","J. K. Sharma",550,"commerce maths",1,3),
-("Mathematics","Calculus","James Stewart",1100,"calculus",0,5),
-("Mathematics","Discrete Mathematics","Kenneth Rosen",950,"logic",1,3),
-("Mathematics","RD Sharma Mathematics Class 11","R. D. Sharma",650,"school maths",1,2),
-("Mathematics","RD Sharma Mathematics Class 12","R. D. Sharma",750,"school maths",1,2),
-("Mathematics","Statistics for Business and Economics","Anderson et al.",900,"statistics",1,4),
-("Mathematics","Advanced Engineering Mathematics","Erwin Kreyszig",950,"engineering maths",0,6),
+    # Economics
+    ("Principles of Economics", "N. Gregory Mankiw", "Economics", 899, 8),
+    ("Principles of Microeconomics", "N. Gregory Mankiw", "Economics", 799, 7),
+    ("Principles of Macroeconomics", "N. Gregory Mankiw", "Economics", 799, 6),
+    ("Microeconomics", "Robert Pindyck and Daniel Rubinfeld", "Economics", 1199, 5),
+    ("Intermediate Microeconomics", "Hal R. Varian", "Economics", 999, 4),
+    ("Macroeconomics", "N. Gregory Mankiw", "Economics", 1099, 6),
+    ("Economics", "Paul A. Samuelson and William D. Nordhaus", "Economics", 1299, 3),
+    ("Development Economics", "Debraj Ray", "Economics", 999, 4),
+    ("International Economics", "Dominick Salvatore", "Economics", 899, 5),
+    ("The Wealth of Nations", "Adam Smith", "Economics", 499, 9),
 
-# Science
-("Science","Concepts of Physics Volume 1","H. C. Verma",450,"physics jee",1,2),
-("Science","Concepts of Physics Volume 2","H. C. Verma",480,"physics jee",1,2),
-("Science","NCERT Physics Class 11","NCERT",190,"school physics",1,2),
-("Science","NCERT Physics Class 12","NCERT",220,"school physics",1,2),
-("Science","NCERT Chemistry Class 11","NCERT",190,"chemistry",1,2),
-("Science","NCERT Chemistry Class 12","NCERT",220,"chemistry",1,2),
-("Science","Organic Chemistry","Morrison and Boyd",850,"chemistry",0,5),
-("Science","Physical Chemistry","P. Bahadur",700,"chemistry",1,3),
-("Science","Fundamentals of Biology","NCERT",250,"biology",1,2),
-("Science","A Brief History of Time","Stephen Hawking",399,"space astronomy",1,3),
+    # Business and management
+    ("Principles of Management", "Harold Koontz and Heinz Weihrich", "Business & Management", 799, 7),
+    ("Management", "Stephen P. Robbins and Mary Coulter", "Business & Management", 999, 5),
+    ("Organizational Behavior", "Stephen P. Robbins and Timothy Judge", "Business & Management", 1099, 5),
+    ("Marketing Management", "Philip Kotler and Kevin Lane Keller", "Business & Management", 1299, 4),
+    ("Fundamentals of Marketing", "William J. Stanton", "Business & Management", 799, 3),
+    ("Human Resource Management", "Gary Dessler", "Business & Management", 999, 4),
+    ("Operations Management", "Jay Heizer, Barry Render and Chuck Munson", "Business & Management", 1099, 5),
+    ("Competitive Strategy", "Michael E. Porter", "Business & Management", 899, 4),
+    ("The Lean Startup", "Eric Ries", "Business & Management", 499, 8),
+    ("Good to Great", "Jim Collins", "Business & Management", 499, 6),
+    ("The Personal MBA", "Josh Kaufman", "Business & Management", 599, 5),
+    ("Business Model Generation", "Alexander Osterwalder and Yves Pigneur", "Business & Management", 899, 3),
 
-# Commerce
-("Commerce","Accountancy Class 11","T. S. Grewal",650,"accounts",1,2),
-("Commerce","Accountancy Class 12","T. S. Grewal",750,"accounts",1,2),
-("Commerce","Business Studies Class 11","NCERT",180,"bst",1,2),
-("Commerce","Business Studies Class 12","NCERT",220,"bst",1,2),
-("Commerce","Introduction to Financial Accounting","Charles T. Horngren",950,"accounting",1,4),
-("Commerce","Cost Accounting","M. N. Arora",850,"accounts",1,4),
-("Commerce","Corporate Accounting","S. N. Maheshwari",900,"accounts",1,4),
-("Commerce","Auditing and Assurance","Vikas Oswal",650,"audit",0,5),
-("Commerce","Taxation","V. K. Singhania",950,"income tax",1,3),
-("Commerce","Fundamentals of Accounting","S. N. Maheshwari",600,"accounts",1,3),
+    # Accounting and finance
+    ("Financial Accounting", "Jerry J. Weygandt, Paul D. Kimmel and Donald E. Kieso", "Accounting & Finance", 999, 5),
+    ("Accounting Principles", "Jerry J. Weygandt, Paul D. Kimmel and Donald E. Kieso", "Accounting & Finance", 899, 4),
+    ("Fundamentals of Corporate Finance", "Stephen A. Ross, Randolph W. Westerfield and Bradford D. Jordan", "Accounting & Finance", 1199, 4),
+    ("Corporate Finance", "Jonathan Berk and Peter DeMarzo", "Accounting & Finance", 1299, 3),
+    ("Financial Management", "I. M. Pandey", "Accounting & Finance", 899, 6),
+    ("Investment Analysis and Portfolio Management", "Frank K. Reilly and Keith C. Brown", "Accounting & Finance", 1199, 3),
+    ("The Intelligent Investor", "Benjamin Graham", "Accounting & Finance", 599, 7),
+    ("A Random Walk Down Wall Street", "Burton G. Malkiel", "Accounting & Finance", 599, 5),
 
-# Economics
-("Economics","Principles of Microeconomics","N. Gregory Mankiw",750,"micro economics",1,2),
-("Economics","Principles of Macroeconomics","N. Gregory Mankiw",750,"macro economics",1,2),
-("Economics","Intermediate Microeconomics","Hal R. Varian",1100,"micro theory",0,6),
-("Economics","Macroeconomics","Olivier Blanchard",1050,"macro theory",1,4),
-("Economics","Indian Economy","Ramesh Singh",850,"india economy upsc",1,2),
-("Economics","Development Economics","Debraj Ray",950,"development",1,4),
-("Economics","International Economics","Dominick Salvatore",900,"international trade",0,5),
-("Economics","Public Finance","H. L. Bhatia",750,"government budget",1,3),
-("Economics","Econometrics","Damodar Gujarati",1000,"statistics",1,4),
-("Economics","Economics","Paul A. Samuelson",950,"economics principles",1,4),
+    # Mathematics and statistics
+    ("Business Mathematics", "J. K. Sharma", "Mathematics & Statistics", 599, 7),
+    ("Business Statistics", "J. K. Sharma", "Mathematics & Statistics", 699, 6),
+    ("Statistics for Business and Economics", "Paul Newbold, William Carlson and Betty Thorne", "Mathematics & Statistics", 999, 4),
+    ("Fundamentals of Mathematical Statistics", "S. C. Gupta and V. K. Kapoor", "Mathematics & Statistics", 899, 5),
+    ("Introduction to Probability", "Joseph K. Blitzstein and Jessica Hwang", "Mathematics & Statistics", 999, 4),
+    ("Calculus", "James Stewart", "Mathematics & Statistics", 1099, 5),
+    ("Linear Algebra and Its Applications", "David C. Lay", "Mathematics & Statistics", 999, 4),
+    ("How to Solve It", "George Pólya", "Mathematics & Statistics", 399, 6),
 
-# Business and Management
-("Business & Management","Principles of Management","Harold Koontz",650,"management",1,2),
-("Business & Management","Management","Stephen P. Robbins",950,"organizational management",1,3),
-("Business & Management","Marketing Management","Philip Kotler",1200,"marketing",1,4),
-("Business & Management","Financial Management","I. M. Pandey",850,"finance",1,3),
-("Business & Management","Human Resource Management","Gary Dessler",1000,"hr hrm",0,5),
-("Business & Management","Operations Management","Heizer and Render",950,"operations",1,4),
-("Business & Management","Organizational Behaviour","Stephen P. Robbins",900,"behavior",1,3),
-("Business & Management","Business Research Methods","Donald R. Cooper",1000,"research",1,4),
-("Business & Management","Entrepreneurship","Hisrich and Peters",850,"startup",1,3),
-("Business & Management","Business Communication","Meenakshi Raman",550,"communication",1,2),
+    # Science and technology
+    ("A Brief History of Time", "Stephen Hawking", "Science & Technology", 399, 7),
+    ("Cosmos", "Carl Sagan", "Science & Technology", 499, 5),
+    ("The Selfish Gene", "Richard Dawkins", "Science & Technology", 599, 4),
+    ("The Origin of Species", "Charles Darwin", "Science & Technology", 499, 6),
+    ("Concepts of Physics Volume 1", "H. C. Verma", "Science & Technology", 499, 8),
+    ("Concepts of Physics Volume 2", "H. C. Verma", "Science & Technology", 499, 7),
+    ("Fundamentals of Physics", "David Halliday, Robert Resnick and Jearl Walker", "Science & Technology", 1199, 4),
+    ("Campbell Biology", "Lisa A. Urry and others", "Science & Technology", 1499, 3),
+    ("The Feynman Lectures on Physics", "Richard P. Feynman, Robert B. Leighton and Matthew Sands", "Science & Technology", 1499, 2),
 
-# CAT / MBA
-("CAT / MBA","Quantitative Aptitude for CAT","Arun Sharma",750,"cat maths",1,2),
-("CAT / MBA","Data Interpretation for CAT","Arun Sharma",700,"cat di",1,2),
-("CAT / MBA","Verbal Ability and Reading Comprehension","Arun Sharma",750,"cat varc english",1,3),
-("CAT / MBA","Quantitative Aptitude for Competitive Examinations","R. S. Aggarwal",650,"aptitude",1,2),
-("CAT / MBA","Verbal and Non-Verbal Reasoning","R. S. Aggarwal",600,"reasoning",1,2),
-("CAT / MBA","Logical Reasoning and Data Interpretation","Nishit K. Sinha",700,"cat lrdi",0,5),
-("CAT / MBA","CAT Previous Years Papers","Various Authors",450,"cat past papers",1,2),
-("CAT / MBA","MBA Entrance Exam Practice Guide","Various Authors",500,"mba mock tests",1,3),
+    # CAT and MBA entrance
+    ("How to Prepare for Quantitative Aptitude for CAT", "Arun Sharma", "CAT & MBA Entrance", 699, 8),
+    ("How to Prepare for Data Interpretation for CAT", "Arun Sharma", "CAT & MBA Entrance", 599, 7),
+    ("How to Prepare for Verbal Ability and Reading Comprehension for CAT", "Arun Sharma", "CAT & MBA Entrance", 699, 8),
+    ("Quantitative Aptitude for CAT", "Nishit K. Sinha", "CAT & MBA Entrance", 699, 6),
+    ("Verbal Ability and Reading Comprehension for CAT", "Nishit K. Sinha", "CAT & MBA Entrance", 599, 5),
+    ("Word Power Made Easy", "Norman Lewis", "CAT & MBA Entrance", 199, 10),
+    ("A Modern Approach to Verbal and Non-Verbal Reasoning", "R. S. Aggarwal", "CAT & MBA Entrance", 499, 8),
+    ("Logical Reasoning and Data Interpretation for CAT", "Nishit K. Sinha", "CAT & MBA Entrance", 699, 5),
 
-# JEE
-("JEE","Understanding Physics","D. C. Pandey",650,"jee physics",1,2),
-("JEE","Problems in General Physics","I. E. Irodov",550,"advanced physics",0,5),
-("JEE","Objective Mathematics","R. D. Sharma",850,"jee maths",1,3),
-("JEE","IIT Mathematics","M. L. Khanna",750,"jee maths",1,3),
-("JEE","Organic Chemistry","O. P. Tandon",700,"jee chemistry",1,2),
-("JEE","Physical Chemistry","O. P. Tandon",700,"jee chemistry",1,2),
-("JEE","Concise Inorganic Chemistry","J. D. Lee",850,"chemistry",0,6),
-("JEE","JEE Main Previous Years Questions","Various Authors",500,"jee pyq",1,2),
+    # JEE
+    ("Concepts of Physics", "H. C. Verma", "JEE Preparation", 499, 8),
+    ("Problems in General Physics", "I. E. Irodov", "JEE Preparation", 499, 5),
+    ("Physical Chemistry", "O. P. Tandon", "JEE Preparation", 699, 6),
+    ("Organic Chemistry", "Morrison and Boyd", "JEE Preparation", 999, 3),
+    ("Concise Inorganic Chemistry", "J. D. Lee", "JEE Preparation", 799, 4),
+    ("IIT Mathematics", "M. L. Khanna", "JEE Preparation", 799, 5),
 
-# NEET
-("NEET","Objective Biology","Dinesh",750,"neet biology",1,2),
-("NEET","Truemans Biology Volume 1","M. P. Tyagi et al.",850,"biology",1,3),
-("NEET","Truemans Biology Volume 2","M. P. Tyagi et al.",850,"biology",1,3),
-("NEET","Objective Physics for NEET","D. C. Pandey",700,"neet physics",1,2),
-("NEET","Objective Chemistry for NEET","R. K. Gupta",700,"neet chemistry",1,2),
-("NEET","NCERT Biology Class 11","NCERT",180,"biology",1,2),
-("NEET","NCERT Biology Class 12","NCERT",220,"biology",1,2),
-("NEET","NEET Previous Years Questions","Various Authors",500,"neet pyq",1,2),
+    # NEET
+    ("Objective Biology", "Dinesh", "NEET Preparation", 699, 6),
+    ("Trueman's Elementary Biology", "M. P. Tyagi", "NEET Preparation", 799, 5),
+    ("Objective Physics for NEET", "D. C. Pandey", "NEET Preparation", 699, 6),
+    ("Objective Chemistry for NEET", "D. C. Pandey", "NEET Preparation", 699, 6),
 
-# UPSC
-("UPSC","Indian Polity","M. Laxmikanth",850,"constitution",1,2),
-("UPSC","A Brief History of Modern India","Spectrum",650,"history",1,2),
-("UPSC","Certificate Physical and Human Geography","Goh Cheng Leong",550,"geography",1,3),
-("UPSC","India's Struggle for Independence","Bipan Chandra",600,"history",1,3),
-("UPSC","Indian Economy","Ramesh Singh",850,"economy",1,2),
-("UPSC","Environment","Shankar IAS Academy",650,"ecology",1,2),
-("UPSC","Oxford Student Atlas for India","Oxford University Press",350,"maps",1,2),
-("UPSC","General Studies Manual","Various Authors",900,"gs prelims mains",0,5),
+    # UPSC and public examinations
+    ("Indian Polity", "M. Laxmikanth", "UPSC & Civil Services", 799, 8),
+    ("Certificate Physical and Human Geography", "Goh Cheng Leong", "UPSC & Civil Services", 499, 7),
+    ("A Brief History of Modern India", "Rajiv Ahir", "UPSC & Civil Services", 499, 8),
+    ("India's Struggle for Independence", "Bipan Chandra", "UPSC & Civil Services", 599, 6),
+    ("Indian Economy", "Ramesh Singh", "UPSC & Civil Services", 899, 5),
+    ("Environment", "Shankar IAS Academy", "UPSC & Civil Services", 699, 6),
+    ("Introduction to the Constitution of India", "D. D. Basu", "UPSC & Civil Services", 699, 4),
+    ("Our Parliament", "Subhash Kashyap", "UPSC & Civil Services", 399, 5),
 
-# Other competitive exams
-("Other Competitive Exams","Objective General English","S. P. Bakshi",550,"english grammar",1,2),
-("Other Competitive Exams","Lucents General Knowledge","Lucent",350,"gk",1,2),
-("Other Competitive Exams","Fast Track Objective Arithmetic","Rajesh Verma",550,"arithmetic",1,3),
-("Other Competitive Exams","A Modern Approach to Verbal Reasoning","R. S. Aggarwal",450,"reasoning",1,2),
-("Other Competitive Exams","General Knowledge 2026","Various Authors",400,"current affairs",1,2),
-("Other Competitive Exams","Banking Awareness","Arihant Experts",350,"bank po",1,2),
-("Other Competitive Exams","SSC CGL Practice Guide","Arihant Experts",500,"ssc",1,3),
-("Other Competitive Exams","Railway Recruitment Exam Guide","Arihant Experts",450,"railway",1,3),
+    # Law and communication
+    ("Business Law", "Robert W. Emerson", "Law & Communication", 899, 4),
+    ("Business Law Including Company Law", "P. C. Tulsian", "Law & Communication", 799, 5),
+    ("Business Communication Today", "Courtland L. Bovee and John V. Thill", "Law & Communication", 999, 3),
+    ("The Elements of Style", "William Strunk Jr. and E. B. White", "Law & Communication", 299, 7),
+    ("On Writing Well", "William Zinsser", "Law & Communication", 399, 5),
+
+    # Programming and research
+    ("Python Crash Course", "Eric Matthes", "Programming & Research", 799, 6),
+    ("Automate the Boring Stuff with Python", "Al Sweigart", "Programming & Research", 699, 5),
+    ("Learning Python", "Mark Lutz", "Programming & Research", 1199, 3),
+    ("Think Python", "Allen B. Downey", "Programming & Research", 599, 5),
+    ("Research Design", "John W. Creswell and J. David Creswell", "Programming & Research", 999, 4),
+    ("The Craft of Research", "Wayne C. Booth and others", "Programming & Research", 699, 5),
+    ("Research Methodology", "C. R. Kothari", "Programming & Research", 599, 7),
 ]
 
-BOOKS = [
-    {
-        "id": i + 1,
-        "category": row[0],
-        "title": row[1],
-        "author": row[2],
-        "price": row[3],
-        "keywords": row[4],
-        "available": bool(row[5]),
-        "days": row[6],
-    }
-    for i, row in enumerate(RAW_BOOKS)
-]
+BOOKS = []
+for index, item in enumerate(RAW_BOOKS):
+    title, author, category, price, stock = item
+    BOOKS.append({
+        "id": index + 1,
+        "title": title,
+        "author": author,
+        "category": category,
+        "price": price,
+        "stock": stock,
+    })
 
-CATEGORIES = ["All categories"] + sorted(set(b["category"] for b in BOOKS))
-
-# =====================================================
-# 3. SESSION STATE
-# =====================================================
+# ---------------------- SESSION STATE ------------------------
 
 if "cart" not in st.session_state:
     st.session_state.cart = {}
 
-if "requests" not in st.session_state:
-    st.session_state.requests = set()
+if "last_order" not in st.session_state:
+    st.session_state.last_order = None
 
 if "page" not in st.session_state:
-    st.session_state.page = "Browse books"
+    st.session_state.page = "Catalogue"
 
-if "selected_unavailable" not in st.session_state:
-    st.session_state.selected_unavailable = None
+# ---------------------- COVER LOOKUP -------------------------
 
-# =====================================================
-# 4. HELPER FUNCTIONS
-# =====================================================
+def clean_text(value):
+    value = re.sub(r"[^a-zA-Z0-9 ]", " ", str(value).lower())
+    return " ".join(value.split())
 
-def rupees(amount):
-    return "₹{:,.2f}".format(amount)
 
-def normalise(text):
-    return " ".join(
-        "".join(
-            char.lower() if char.isalnum() else " "
-            for char in str(text)
-        ).split()
-    )
+def title_similarity(first, second):
+    return SequenceMatcher(
+        None, clean_text(first), clean_text(second)
+    ).ratio()
 
-def find_books(query, books):
-    if not query.strip():
-        return books
-
-    query = normalise(query)
-    found = []
-
-    for book in books:
-        searchable = normalise(
-            book["title"] + " " + book["author"] + " "
-            + book["category"] + " " + book["keywords"]
-        )
-
-        if query in searchable:
-            found.append((1.0, book))
-            continue
-
-        searchable_words = searchable.split()
-        query_words = query.split()
-        word_scores = []
-
-        for query_word in query_words:
-            if query_word in searchable_words:
-                word_scores.append(1.0)
-            else:
-                matches = difflib.get_close_matches(
-                    query_word, searchable_words, n=1, cutoff=0.55
-                )
-                if matches:
-                    word_scores.append(
-                        difflib.SequenceMatcher(
-                            None, query_word, matches[0]
-                        ).ratio()
-                    )
-                else:
-                    word_scores.append(0.0)
-
-        score = sum(word_scores) / max(1, len(word_scores))
-
-        if score >= 0.55:
-            found.append((score, book))
-
-    found.sort(key=lambda item: (-item[0], item[1]["title"]))
-    return [item[1] for item in found]
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def book_cover(title, author):
-    params = urllib.parse.urlencode({
-        "title": title,
-        "author": author,
-        "limit": 1
-    })
+    """Find a cover using Google Books, then Open Library."""
 
-    url = "https://openlibrary.org/search.json?" + params
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "PageNestBookstore/1.0"}
-    )
+    def get_json(url):
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "PageNestBookstore/1.0"}
+        )
+        with urllib.request.urlopen(request, timeout=4) as response:
+            return json.loads(response.read().decode("utf-8"))
 
+    # Google Books API
     try:
-        with urllib.request.urlopen(request, timeout=2.5) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        query = f'intitle:"{title}" inauthor:"{author}"'
+        url = (
+            "https://www.googleapis.com/books/v1/volumes?"
+            + urllib.parse.urlencode({
+                "q": query,
+                "maxResults": 8,
+                "printType": "books",
+            })
+        )
 
-        docs = data.get("docs", [])
-        if docs and docs[0].get("cover_i"):
-            return (
-                "https://covers.openlibrary.org/b/id/"
-                + str(docs[0]["cover_i"]) + "-M.jpg"
+        data = get_json(url)
+
+        for item in data.get("items", []):
+            info = item.get("volumeInfo", {})
+            result_title = info.get("title", "")
+
+            if title_similarity(title, result_title) < 0.58:
+                continue
+
+            result_authors = info.get("authors", [])
+            author_match = (
+                not result_authors
+                or any(
+                    title_similarity(author, result_author) > 0.45
+                    or title_similarity(result_author, author) > 0.45
+                    for result_author in result_authors
+                )
             )
+
+            if not author_match:
+                continue
+
+            links = info.get("imageLinks", {})
+            image_url = (
+                links.get("extraLarge")
+                or links.get("large")
+                or links.get("medium")
+                or links.get("thumbnail")
+                or links.get("smallThumbnail")
+            )
+
+            if image_url:
+                return image_url.replace("http://", "https://")
+
+    except Exception:
+        pass
+
+    # Open Library API
+    try:
+        url = (
+            "https://openlibrary.org/search.json?"
+            + urllib.parse.urlencode({
+                "title": title,
+                "author": author,
+                "limit": 10,
+                "fields": "title,author_name,cover_i",
+            })
+        )
+
+        data = get_json(url)
+
+        for item in data.get("docs", []):
+            result_title = item.get("title", "")
+            result_authors = item.get("author_name", [])
+
+            if title_similarity(title, result_title) < 0.58:
+                continue
+
+            author_match = (
+                not result_authors
+                or any(
+                    title_similarity(author, result_author) > 0.45
+                    or title_similarity(result_author, author) > 0.45
+                    for result_author in result_authors
+                )
+            )
+
+            cover_id = item.get("cover_i")
+            if author_match and cover_id:
+                return (
+                    f"https://covers.openlibrary.org/b/id/"
+                    f"{cover_id}-L.jpg?default=false"
+                )
+
     except Exception:
         pass
 
     return None
 
-def nearby_store_url(book, location):
-    query = f"bookstore selling {book['title']} near {location}"
-    return (
-        "https://www.google.com/maps/search/?api=1&query="
-        + urllib.parse.quote(query)
+
+# ----------------------- CART HELPERS ------------------------
+
+def cart_quantity():
+    return sum(st.session_state.cart.values())
+
+
+def cart_subtotal():
+    return sum(
+        next(book["price"] for book in BOOKS if book["id"] == book_id) * quantity
+        for book_id, quantity in st.session_state.cart.items()
     )
 
-def add_to_cart(book):
-    if book["available"]:
-        book_id = book["id"]
-        st.session_state.cart[book_id] = (
-            st.session_state.cart.get(book_id, 0) + 1
-        )
 
-# =====================================================
-# 5. SIDEBAR
-# =====================================================
+def add_to_cart(book_id):
+    book = next(book for book in BOOKS if book["id"] == book_id)
+    current_quantity = st.session_state.cart.get(book_id, 0)
+
+    if current_quantity >= book["stock"]:
+        st.warning("Sorry, no more copies are available in the demo inventory.")
+        return
+
+    st.session_state.cart[book_id] = current_quantity + 1
+    st.toast(f"Added {book['title']} to your cart!")
+
+
+# -------------------------- HEADER ---------------------------
+
+st.markdown("""
+<div class="hero">
+    <h1>PageNest</h1>
+    <p>Books, ideas and possibilities — all in one place.</p>
+    <p>Explore academic textbooks, competitive exam preparation,
+    business classics and research resources.</p>
+</div>
+""", unsafe_allow_html=True)
+
+metric1, metric2, metric3 = st.columns(3)
+
+with metric1:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Books in catalogue</div>'
+        f'<div class="metric-value">{len(BOOKS)}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+with metric2:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Subjects</div>'
+        f'<div class="metric-value">{len(set(b["category"] for b in BOOKS))}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+with metric3:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Items in your cart</div>'
+        f'<div class="metric-value">{cart_quantity()}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+st.write("")
+
+# -------------------------- SIDEBAR --------------------------
 
 with st.sidebar:
-    st.markdown("# 📚 PageNest")
-    st.caption("BOOKS & LEARNING")
+    st.markdown("## 📚 PageNest")
+    st.caption("Your personal bookstore")
+
+    page_choice = st.radio(
+        "Navigate",
+        ["Catalogue", "Shopping Cart", "Checkout", "Find a Book"],
+        index=["Catalogue", "Shopping Cart", "Checkout", "Find a Book"].index(
+            st.session_state.page
+        ),
+    )
+    st.session_state.page = page_choice
+
     st.divider()
 
-    st.markdown("### Catalogue filters")
+    st.markdown("### 🔎 Find your next book")
 
-    query = st.text_input(
-        "Search title, author or subject",
-        placeholder="Try microeconomics or Mankiw"
+    search_query = st.text_input(
+        "Search title or author",
+        placeholder="e.g. Microeconomics",
+        key="catalogue_search",
     )
 
-    category = st.selectbox("Category", CATEGORIES)
+    categories = ["All Subjects"] + sorted(set(
+        book["category"] for book in BOOKS
+    ))
 
-    max_price = st.slider(
-        "Maximum price (₹)", 100, 2000, 2000, step=50
+    selected_category = st.selectbox(
+        "Subject",
+        categories,
+        key="catalogue_category",
     )
 
-    author_filter = st.text_input(
-        "Publisher / author",
-        placeholder="Optional filter"
+    max_price = max(book["price"] for book in BOOKS)
+    price_limit = st.slider(
+        "Maximum price (₹)",
+        min_value=100,
+        max_value=max_price,
+        value=max_price,
+        step=100,
+    )
+
+    availability_filter = st.selectbox(
+        "Availability",
+        ["All Books", "In Stock", "Out of Stock"],
     )
 
     st.divider()
-    st.markdown("### Navigate")
 
-    if st.button("📚 Browse books", use_container_width=True):
-        st.session_state.page = "Browse books"
+    st.markdown("### 🛒 Your cart")
+    st.metric("Items", cart_quantity())
+    st.metric("Subtotal", f"₹{cart_subtotal():,.2f}")
 
-    if st.button("🛒 Cart & checkout", use_container_width=True):
-        st.session_state.page = "Cart & checkout"
+    if st.button("View Cart", use_container_width=True):
+        st.session_state.page = "Shopping Cart"
+        st.rerun()
 
-    if st.button("🔎 Find a book", use_container_width=True):
-        st.session_state.page = "Find a book"
+    st.caption("Prices shown are sample catalogue prices.")
 
-    if st.button("ℹ️ About PageNest", use_container_width=True):
-        st.session_state.page = "About PageNest"
+# --------------------- CATALOGUE FILTERS ---------------------
 
-    st.divider()
-    st.caption(f"{len(BOOKS)} catalogue entries")
-    st.caption("Demo catalogue. Check editions and stock before ordering.")
+filtered_books = BOOKS.copy()
 
-# =====================================================
-# 6. TOP HEADER
-# =====================================================
-
-header_col, cart_col = st.columns([5, 1])
-
-with header_col:
-    st.markdown(
-        "<h1 style='margin-bottom:0;color:#202938'>📚 PageNest</h1>"
-        "<p style='color:#566477;margin-top:3px'>"
-        "Discover. Learn. Grow.</p>",
-        unsafe_allow_html=True
-    )
-
-with cart_col:
-    st.markdown("### 🛒 Cart")
-    st.metric("Items", sum(st.session_state.cart.values()))
-
-st.divider()
-
-# =====================================================
-# 7. BROWSE BOOKS
-# =====================================================
-
-if st.session_state.page == "Browse books":
-
-    st.markdown("## Find your next book")
-    st.caption(
-        "Textbooks, university reading and competitive exam preparation."
-    )
-
-    filtered = [
-        b for b in BOOKS
-        if (category == "All categories" or b["category"] == category)
-        and b["price"] <= max_price
-        and (
-            not author_filter.strip()
-            or author_filter.lower() in b["author"].lower()
-        )
+if search_query.strip():
+    query = clean_text(search_query)
+    filtered_books = [
+        book for book in filtered_books
+        if query in clean_text(book["title"])
+        or query in clean_text(book["author"])
+        or query in clean_text(book["category"])
     ]
 
-    filtered = find_books(query, filtered)
+if selected_category != "All Subjects":
+    filtered_books = [
+        book for book in filtered_books
+        if book["category"] == selected_category
+    ]
 
-    sort_option = st.selectbox(
-        "Sort books",
-        [
-            "Recommended",
-            "Price: low to high",
-            "Price: high to low",
-            "Title A–Z"
-        ]
+filtered_books = [
+    book for book in filtered_books
+    if book["price"] <= price_limit
+]
+
+if availability_filter == "In Stock":
+    filtered_books = [book for book in filtered_books if book["stock"] > 0]
+elif availability_filter == "Out of Stock":
+    filtered_books = [book for book in filtered_books if book["stock"] == 0]
+
+# ------------------------ CATALOGUE PAGE ---------------------
+
+if st.session_state.page == "Catalogue":
+    st.markdown('<div class="section-title">Explore the Catalogue</div>',
+                unsafe_allow_html=True)
+
+    st.caption(
+        f"Showing {len(filtered_books)} of {len(BOOKS)} books. "
+        "Use the sidebar to filter by subject, price or availability."
     )
 
-    if sort_option == "Price: low to high":
-        filtered.sort(key=lambda b: b["price"])
-    elif sort_option == "Price: high to low":
-        filtered.sort(key=lambda b: b["price"], reverse=True)
+    sort_option = st.selectbox(
+        "Sort books by",
+        ["Recommended", "Price: Low to High", "Price: High to Low", "Title A–Z"],
+    )
+
+    if sort_option == "Price: Low to High":
+        filtered_books.sort(key=lambda book: book["price"])
+    elif sort_option == "Price: High to Low":
+        filtered_books.sort(key=lambda book: book["price"], reverse=True)
     elif sort_option == "Title A–Z":
-        filtered.sort(key=lambda b: b["title"].lower())
+        filtered_books.sort(key=lambda book: book["title"].lower())
 
-    st.caption(f"{len(filtered)} books found")
+    if not filtered_books:
+        st.warning("No books match those filters.")
+        st.info("Try another search term or increase your maximum price.")
 
-    if not filtered:
-        st.info("No books match these filters. Try another search.")
     else:
-        for start in range(0, len(filtered), 4):
-            columns = st.columns(4)
+        # Three cards per row
+        for start in range(0, len(filtered_books), 3):
+            row_books = filtered_books[start:start + 3]
+            columns = st.columns(3)
 
-            for col, book in zip(columns, filtered[start:start + 4]):
-                with col:
+            for column, book in zip(columns, row_books):
+                with column:
                     with st.container(border=True):
                         cover = book_cover(book["title"], book["author"])
 
                         if cover:
-                            st.image(cover, use_container_width=True)
+                            try:
+                                st.image(cover, use_container_width=True)
+                            except Exception:
+                                st.info("Cover image could not be displayed.")
                         else:
                             st.markdown(
-                                "<div style='height:190px;background:#EAF0F8;"
-                                "border-radius:8px;display:flex;"
+                                "<div style='height:190px;display:flex;"
                                 "align-items:center;justify-content:center;"
-                                "text-align:center;padding:14px;color:#202938'>"
-                                "<div><div style='font-size:32px'>📖</div>"
-                                f"<b>{book['title']}</b><br>"
-                                f"<small>{book['category']}</small></div></div>",
-                                unsafe_allow_html=True
+                                "background:#EAF0F8;border-radius:10px;"
+                                "font-size:48px;'>📚</div>",
+                                unsafe_allow_html=True,
+                            )
+                            image_query = urllib.parse.quote(
+                                f'{book["title"]} {book["author"]} book cover'
+                            )
+                            st.markdown(
+                                f"[Search for this book's cover](https://www.google.com/search?tbm=isch&q={image_query})"
                             )
 
-                        st.markdown(f"**{book['title']}**")
-                        st.caption(book["author"])
                         st.markdown(
-                            "<div class='book-price'>"
-                            + rupees(book["price"])
-                            + "</div>",
-                            unsafe_allow_html=True
+                            f'<div class="book-title">{book["title"]}</div>',
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(
+                            f'<div class="book-author">{book["author"]}</div>',
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(
+                            f'<span class="book-category">{book["category"]}</span>',
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(
+                            f'<div class="book-price">₹{book["price"]:,}</div>',
+                            unsafe_allow_html=True,
                         )
 
-                        if book["available"]:
-                            st.markdown(
-                                "<div class='book-stock'>● In stock (demo)</div>",
-                                unsafe_allow_html=True
-                            )
-
+                        if book["stock"] > 0:
+                            st.caption(f"{book['stock']} copies in demo stock")
                             if st.button(
-                                "Add to cart",
+                                "＋ Add to Cart",
                                 key=f"add_{book['id']}",
-                                use_container_width=True
+                                use_container_width=True,
                             ):
-                                add_to_cart(book)
-                                st.toast("Book added to cart")
+                                add_to_cart(book["id"])
                                 st.rerun()
                         else:
-                            st.markdown(
-                                "<div class='book-unavailable'>"
-                                "Currently unavailable</div>",
-                                unsafe_allow_html=True
-                            )
-
-                            st.caption(
-                                f"Estimated restock: {book['days']} days*"
-                            )
-
+                            st.warning("Currently unavailable")
                             if st.button(
-                                "Find nearby store",
-                                key=f"store_{book['id']}",
-                                use_container_width=True
+                                "Find Nearby Store",
+                                key=f"nearby_{book['id']}",
+                                use_container_width=True,
                             ):
-                                st.session_state.selected_unavailable = book["id"]
-                                st.session_state.page = "Find a book"
+                                st.session_state["find_book_title"] = book["title"]
+                                st.session_state.page = "Find a Book"
                                 st.rerun()
 
-                            if st.button(
-                                "Request this book",
-                                key=f"request_{book['id']}",
-                                use_container_width=True
-                            ):
-                                st.session_state.requests.add(book["id"])
-                                st.toast("Request saved for this session")
+# ------------------------ SHOPPING CART ----------------------
 
-    st.caption(
-        "*Availability and restock estimates are sample data, "
-        "not confirmed supplier information."
-    )
+elif st.session_state.page == "Shopping Cart":
+    st.markdown('<div class="section-title">Your Shopping Cart</div>',
+                unsafe_allow_html=True)
 
-# =====================================================
-# 8. CART AND CHECKOUT
-# =====================================================
-
-elif st.session_state.page == "Cart & checkout":
-
-    st.markdown("## 🛒 Your cart")
-    st.caption("Review your selected books and calculate your order.")
-
-    cart_items = []
-
-    for book_id, quantity in list(st.session_state.cart.items()):
-        book = next((b for b in BOOKS if b["id"] == book_id), None)
-        if book:
-            cart_items.append((book, quantity))
-
-    if not cart_items:
-        st.info("Your cart is empty. Browse the catalogue to add books.")
-    else:
-        subtotal = 0
-
-        for book, quantity in cart_items:
-            c1, c2, c3, c4 = st.columns([4, 1.3, 1.5, 1])
-
-            with c1:
-                st.markdown(f"**{book['title']}**")
-                st.caption(book["author"])
-
-            with c2:
-                updated_quantity = st.number_input(
-                    "Quantity",
-                    min_value=1,
-                    max_value=99,
-                    value=quantity,
-                    key=f"quantity_{book['id']}"
-                )
-                st.session_state.cart[book["id"]] = updated_quantity
-
-            line_total = book["price"] * updated_quantity
-            subtotal += line_total
-
-            with c3:
-                st.markdown("**Line total**")
-                st.write(rupees(line_total))
-
-            with c4:
-                if st.button("Remove", key=f"remove_{book['id']}"):
-                    del st.session_state.cart[book["id"]]
-                    st.rerun()
-
-        st.divider()
-        st.markdown("## Discount")
-
-        discount_code = st.text_input(
-            "Discount code",
-            placeholder="Try PAGE5 for 5% off"
-        )
-
-        if discount_code.strip().upper() == "PAGE5":
-            discount_rate = 0.05
-            st.success("PAGE5 discount applied: 5%")
-        else:
-            discount_rate = 0.0
-            if discount_code.strip():
-                st.warning("Code not recognised. No discount applied.")
-
-        discount = subtotal * discount_rate
-        discounted_subtotal = subtotal - discount
-
-        st.markdown("## Billing details")
-
-        customer_name = st.text_input(
-            "Customer name",
-            placeholder="Enter your name"
-        )
-
-        customer_email = st.text_input(
-            "Email address (optional)",
-            placeholder="you@example.com"
-        )
-
-        gstin = st.text_input(
-            "GSTIN (optional)",
-            placeholder="Enter 15-character GSTIN",
-            max_chars=15
-        ).strip().upper()
-
-        if gstin and (len(gstin) != 15 or not gstin.isalnum()):
-            st.warning(
-                "Check the GSTIN format. This is only a format check, "
-                "not verification of registration."
-            )
-
-        gst_rate = st.selectbox(
-            "Estimated GST rate",
-            [0, 5, 12, 18],
-            help="Select an assumed rate for this demo."
-        )
-
-        gst_amount = discounted_subtotal * gst_rate / 100
-        total = discounted_subtotal + gst_amount
-
-        st.divider()
-
-        summary_col, total_col = st.columns([2, 1])
-
-        with summary_col:
-            st.markdown("### Order summary")
-            st.write(f"Subtotal: {rupees(subtotal)}")
-            st.write(f"Discount: −{rupees(discount)}")
-            st.write(f"Estimated GST: {rupees(gst_amount)}")
-
-        with total_col:
-            st.markdown(
-                "<div class='order-total'>"
-                "<div style='font-weight:700;color:#566477'>ORDER TOTAL</div>"
-                f"<div class='amount'>{rupees(total)}</div>"
-                "<div style='color:#566477;font-size:13px'>"
-                "Including estimated GST</div></div>",
-                unsafe_allow_html=True
-            )
-
-        st.caption(
-            "Demo checkout only. No payment is collected. GST rates are "
-            "assumptions, and entering a GSTIN does not create a compliant "
-            "tax invoice or verify registration."
-        )
-
-        if st.button(
-            "Prepare receipt",
-            type="primary",
-            use_container_width=True
-        ):
-            receipt = io.StringIO()
-            writer = csv.writer(receipt)
-
-            writer.writerow(["PageNest Books & Learning — Demo Receipt"])
-            writer.writerow([
-                "Date", datetime.now().strftime("%Y-%m-%d %H:%M")
-            ])
-            writer.writerow(["Customer", customer_name])
-            writer.writerow(["Email", customer_email])
-            writer.writerow(["GSTIN entered", gstin])
-            writer.writerow([])
-            writer.writerow([
-                "Book", "Author", "Quantity", "Unit price", "Line total"
-            ])
-
-            for book, _ in cart_items:
-                qty = st.session_state.cart[book["id"]]
-                writer.writerow([
-                    book["title"],
-                    book["author"],
-                    qty,
-                    book["price"],
-                    book["price"] * qty
-                ])
-
-            writer.writerow([])
-            writer.writerow(["Subtotal", subtotal])
-            writer.writerow(["Discount", discount])
-            writer.writerow(["Estimated GST", gst_amount])
-            writer.writerow(["Total", total])
-
-            st.download_button(
-                "⬇ Download receipt (CSV)",
-                data=receipt.getvalue(),
-                file_name="pagenest_receipt.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-
-        if st.button("Empty cart"):
-            st.session_state.cart = {}
+    if not st.session_state.cart:
+        st.info("Your cart is empty. Explore the catalogue to add books.")
+        if st.button("Continue Shopping"):
+            st.session_state.page = "Catalogue"
             st.rerun()
 
-# =====================================================
-# 9. FIND BOOK / NEARBY STORE
-# =====================================================
-
-elif st.session_state.page == "Find a book":
-
-    st.markdown("## 🔎 Find a book")
-    st.write(
-        "Look for unavailable books at nearby shops, or save a request."
-    )
-
-    unavailable = [b for b in BOOKS if not b["available"]]
-
-    options = {
-        f"{b['title']} — {b['author']}": b
-        for b in unavailable
-    }
-
-    labels = list(options.keys())
-    default_index = 0
-
-    if st.session_state.selected_unavailable:
-        for index, book in enumerate(unavailable):
-            if book["id"] == st.session_state.selected_unavailable:
-                default_index = index
-                break
-
-    selected_label = st.selectbox(
-        "Select an unavailable book",
-        labels,
-        index=default_index
-    )
-
-    selected_book = options[selected_label]
-
-    st.info(
-        f"Sample restock estimate: {selected_book['days']} days. "
-        "This is not a confirmed delivery date."
-    )
-
-    location = st.text_input(
-        "Your city, area or PIN code",
-        placeholder="For example, Sonipat"
-    )
-
-    if location.strip():
-        st.link_button(
-            "Search nearby bookstores on Google Maps",
-            nearby_store_url(selected_book, location),
-            use_container_width=True
-        )
-
-        st.caption(
-            "Contact the shop to confirm the exact title, edition and stock."
-        )
-
-    if st.button("Request this book", type="primary"):
-        st.session_state.requests.add(selected_book["id"])
-        st.success("Your request is saved for this session.")
-
-    st.divider()
-    st.markdown("### Requested books")
-
-    requested = [
-        b for b in BOOKS if b["id"] in st.session_state.requests
-    ]
-
-    if requested:
-        for book in requested:
-            st.write(
-                f"📖 {book['title']} — sample estimate: {book['days']} days"
-            )
     else:
-        st.caption("No book requests yet.")
+        for book_id in list(st.session_state.cart.keys()):
+            book = next(book for book in BOOKS if book["id"] == book_id)
+            quantity = st.session_state.cart[book_id]
 
-    st.caption(
-        "Requests are stored only for the current session. "
-        "Email notifications and persistent requests need a database."
-    )
+            with st.container(border=True):
+                col1, col2, col3, col4 = st.columns([4, 1, 2, 1])
 
-# =====================================================
-# 10. ABOUT
-# =====================================================
+                with col1:
+                    st.markdown(f"**{book['title']}**")
+                    st.caption(f"{book['author']} · {book['category']}")
 
-elif st.session_state.page == "About PageNest":
+                with col2:
+                    st.write(f"Qty: {quantity}")
 
-    st.markdown("## About PageNest")
+                with col3:
+                    st.write(f"₹{book['price'] * quantity:,.2f}")
+
+                with col4:
+                    if st.button("Remove", key=f"remove_{book_id}"):
+                        del st.session_state.cart[book_id]
+                        st.rerun()
+
+                qty_col1, qty_col2, qty_col3 = st.columns([1, 1, 4])
+
+                with qty_col1:
+                    if st.button("−", key=f"minus_{book_id}"):
+                        if quantity <= 1:
+                            del st.session_state.cart[book_id]
+                        else:
+                            st.session_state.cart[book_id] = quantity - 1
+                        st.rerun()
+
+                with qty_col2:
+                    if st.button("+", key=f"plus_{book_id}"):
+                        if quantity < book["stock"]:
+                            st.session_state.cart[book_id] = quantity + 1
+                        else:
+                            st.warning("Maximum available demo stock reached.")
+                        st.rerun()
+
+        st.divider()
+
+        subtotal = cart_subtotal()
+        st.markdown(f"### Subtotal: ₹{subtotal:,.2f}")
+        st.caption("Shipping and applicable taxes, if any, are calculated at checkout.")
+
+        cart_actions1, cart_actions2 = st.columns(2)
+
+        with cart_actions1:
+            if st.button("Continue Shopping", use_container_width=True):
+                st.session_state.page = "Catalogue"
+                st.rerun()
+
+        with cart_actions2:
+            if st.button("Proceed to Checkout", use_container_width=True):
+                st.session_state.page = "Checkout"
+                st.rerun()
+
+# ---------------------------- CHECKOUT -----------------------
+
+elif st.session_state.page == "Checkout":
+    st.markdown('<div class="section-title">Checkout</div>',
+                unsafe_allow_html=True)
+
+    if not st.session_state.cart:
+        st.info("Your cart is empty. Add books before checking out.")
+        if st.button("Browse Books"):
+            st.session_state.page = "Catalogue"
+            st.rerun()
+
+    else:
+        subtotal = cart_subtotal()
+
+        st.markdown("### Order Summary")
+
+        for book_id, quantity in st.session_state.cart.items():
+            book = next(book for book in BOOKS if book["id"] == book_id)
+            st.write(
+                f"**{book['title']}** × {quantity} — "
+                f"₹{book['price'] * quantity:,.2f}"
+            )
+
+        st.divider()
+
+        with st.form("checkout_form"):
+            st.markdown("### Delivery Details")
+
+            full_name = st.text_input("Full Name *")
+            email = st.text_input("Email Address *")
+            phone = st.text_input("Phone Number *")
+            address = st.text_area("Delivery Address *")
+            city = st.text_input("City *")
+            state = st.text_input("State *")
+            pincode = st.text_input("PIN Code *")
+
+            st.markdown("### Invoice Details")
+            gstin = st.text_input(
+                "GSTIN (optional)",
+                placeholder="Enter GSTIN if applicable",
+            )
+
+            discount_code = st.text_input(
+                "Discount Code",
+                placeholder="Try PAGENEST10",
+            )
+
+            st.caption(
+                "This is a demonstration checkout. It does not process "
+                "payments or place a real order."
+            )
+
+            submitted = st.form_submit_button(
+                "Calculate Total",
+                use_container_width=True,
+            )
+
+        if submitted:
+            required_fields = [
+                full_name, email, phone, address,
+                city, state, pincode
+            ]
+
+            if not all(field.strip() for field in required_fields):
+                st.error("Please complete all required delivery fields.")
+            elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email.strip()):
+                st.error("Please enter a valid email address.")
+            elif not re.fullmatch(r"[0-9+\-\s()]{7,20}", phone.strip()):
+                st.error("Please enter a valid phone number.")
+            elif not re.fullmatch(r"[0-9A-Za-z -]{4,10}", pincode.strip()):
+                st.error("Please enter a valid PIN code.")
+            elif gstin.strip() and not re.fullmatch(
+                r"[0-9A-Z]{15}", gstin.strip().upper()
+            ):
+                st.error("GSTIN should contain 15 alphanumeric characters.")
+            else:
+                discount = 0
+
+                if discount_code.strip().upper() == "PAGENEST10":
+                    discount = round(subtotal * 0.10, 2)
+                    st.success("PAGENEST10 applied: 10% discount.")
+                elif discount_code.strip():
+                    st.warning("Code not recognised. No discount applied.")
+
+                total = max(0, subtotal - discount)
+
+                st.session_state.last_order = {
+                    "name": full_name.strip(),
+                    "email": email.strip(),
+                    "phone": phone.strip(),
+                    "address": address.strip(),
+                    "city": city.strip(),
+                    "state": state.strip(),
+                    "pincode": pincode.strip(),
+                    "gstin": gstin.strip().upper(),
+                    "subtotal": subtotal,
+                    "discount": discount,
+                    "total": total,
+                    "items": len(st.session_state.cart),
+                    "order_date": date.today().isoformat(),
+                }
+
+                st.markdown("### Your Estimated Total")
+
+                total_col1, total_col2, total_col3 = st.columns(3)
+
+                total_col1.metric("Subtotal", f"₹{subtotal:,.2f}")
+                total_col2.metric("Discount", f"−₹{discount:,.2f}")
+                total_col3.metric("Total", f"₹{total:,.2f}")
+
+                st.info(
+                    "Your order summary has been calculated. "
+                    "No payment has been taken and no real order has been placed."
+                )
+
+        if st.session_state.last_order:
+            order = st.session_state.last_order
+
+            st.divider()
+            st.markdown("### Latest Calculated Order")
+            st.write(f"**Customer:** {order['name']}")
+            st.write(f"**Order date:** {order['order_date']}")
+            st.write(f"**Delivery city:** {order['city']}, {order['state']}")
+            st.write(f"**Items:** {order['items']}")
+            st.write(f"**Total:** ₹{order['total']:,.2f}")
+
+            summary_text = (
+                "PAGENEST ORDER SUMMARY\n"
+                f"Customer: {order['name']}\n"
+                f"Email: {order['email']}\n"
+                f"Phone: {order['phone']}\n"
+                f"Delivery address: {order['address']}, {order['city']}, "
+                f"{order['state']} {order['pincode']}\n"
+                f"GSTIN: {order['gstin'] or 'Not provided'}\n"
+                f"Subtotal: INR {order['subtotal']:.2f}\n"
+                f"Discount: INR {order['discount']:.2f}\n"
+                f"Total: INR {order['total']:.2f}\n"
+                f"Date: {order['order_date']}\n"
+                "Demo only; payment not processed."
+            )
+
+            st.download_button(
+                "Download Order Summary",
+                data=summary_text,
+                file_name="pagenest_order_summary.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+
+# ------------------------ FIND A BOOK ------------------------
+
+elif st.session_state.page == "Find a Book":
+    st.markdown('<div class="section-title">Find a Book</div>',
+                unsafe_allow_html=True)
 
     st.write(
-        "PageNest is a bookstore concept for students, readers and "
-        "competitive exam aspirants. Its goal is to make finding the "
-        "right book simple and comfortable."
+        "Can't find a title or it's out of stock? Search online bookstores "
+        "or look for nearby bookshops."
     )
 
-    st.markdown("### What you can do")
-    st.write("- Search by title, author or subject.")
-    st.write("- Filter by category and maximum price.")
-    st.write("- View book cover images when available.")
-    st.write("- Add books to your cart and change quantities.")
-    st.write("- Apply a demo discount code.")
-    st.write("- Estimate GST and download a receipt.")
-    st.write("- Find nearby bookstores for unavailable titles.")
+    default_title = st.session_state.get("find_book_title", "")
 
-    st.caption(
-        "Catalogue, prices, stock and restock times are illustrative. "
-        "Verify book editions and availability before purchasing."
+    find_title = st.text_input(
+        "Book title",
+        value=default_title,
+        placeholder="Enter the title you need",
+        key="find_title_input",
     )
 
-# =====================================================
-# 11. FOOTER
-# =====================================================
-
-st.divider()
-
-footer_left, footer_right = st.columns(2)
-
-with footer_left:
-    st.markdown("**📚 PageNest | Books & Learning**")
-    st.caption("Discover. Learn. Grow.")
-
-with footer_right:
-    st.caption(
-        "A clean, accessible bookstore interface built with Streamlit."
+    find_author = st.text_input(
+        "Author (optional)",
+        placeholder="Enter author name",
     )
+
+    city_for_search = st.text_input(
+        "City or area",
+        placeholder="e.g. Sonipat, Haryana",
+    )
+
+    if st.button("Search for Book", use_container_width=True):
+        if not find_title.strip():
+            st.error("Please enter a book title.")
+        else:
+            search_text = " ".join(
+                part for part in [find_title.strip(), find_author.strip()]
+                if part
+            )
+
+            online_query = urllib.parse.quote(search_text + " buy book India")
+            maps_query = urllib.parse.quote(
+                "bookstores near " + city_for_search.strip()
+                if city_for_search.strip()
+                else "bookstores near me"
+            )
+            cover_query = urllib.parse.quote(search_text + " book cover")
+
+            st.markdown("### Search Results")
+            st.markdown(
+                f"[Search Google for this book](https://www.google.com/search?q={online_query})"
+            )
+            st.markdown(
+                f"[Search Google Images for the cover](https://www.google.com/search?tbm=isch&q={cover_query})"
+            )
+            st.markdown(
+                f"[Find nearby bookstores on Google Maps](https://www.google.com/maps/search/?api=1&query={maps_query})"
+            )
+
+            estimated_date = date.today() + timedelta(days=7)
+
+            st.markdown("### Estimated Restocking")
+            st.write(
+                f"If the supplier can fulfil the order, a sample restocking "
+                f"estimate is **{estimated_date.strftime('%d %B %Y')}**."
+            )
+            st.caption(
+                "This is only a planning estimate, not a confirmed supplier date. "
+                "Actual availability and delivery time must be verified with the seller."
+            )
+
+# --------------------------- FOOTER --------------------------
+
+st.markdown("""
+<div class="footer">
+    <strong>PageNest | Books & Learning</strong><br>
+    Find your next idea. Discover your next chapter.<br>
+    <span style="font-size:12px;">
+        Student project demonstration · Sample prices and inventory
+    </span>
+</div>
+""", unsafe_allow_html=True)
