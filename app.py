@@ -7,6 +7,8 @@ import re
 import io
 import uuid
 import html
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from datetime import date, timedelta
 
@@ -135,6 +137,14 @@ hr{border-color:var(--line)!important}
  display:flex;align-items:center;justify-content:center;font-size:21px;margin:4px 0 auto}
 .cat-name{font-family:'Playfair Display',serif;font-size:13px;letter-spacing:.07em;font-weight:700;text-transform:uppercase;color:#fff!important;line-height:1.2}
 .cat-sub{font-size:11px;color:rgba(255,255,255,.8)!important;margin-top:3px}
+
+/* designed fallback cover (used only when no real cover image is found) */
+.gen-cover{aspect-ratio:2/3;width:100%;box-sizing:border-box;border-radius:3px 8px 8px 3px;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;text-align:center;padding:18px 14px;
+ box-shadow:-3px 0 0 rgba(0,0,0,.18),0 8px 18px rgba(27,42,34,.2)}
+.gc-title{font-family:'Playfair Display',serif;color:#F2D9A0!important;font-weight:700;line-height:1.15;margin:14px 0}
+.gc-rule{width:46px;height:2px;background:#B8955A}
+.gc-author{color:#EBDDBB!important;font-size:11px;letter-spacing:.18em;font-weight:600}
 
 /* book card text */
 .meta-top{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:6px 0 4px}
@@ -432,6 +442,37 @@ RAW_BOOKS = [
 ("The Girl on the Train","Paula Hawkins","Personal Development & Fiction",349,6),
 ("The Da Vinci Code","Dan Brown","Personal Development & Fiction",399,7),
 ("The Fault in Our Stars","John Green","Personal Development & Fiction",349,6),
+# Thirty more self-help and ideas bestsellers
+("Thinking, Fast and Slow","Daniel Kahneman","Personal Development & Fiction",599,6),
+("Mindset: The New Psychology of Success","Carol S. Dweck","Personal Development & Fiction",449,7),
+("Grit","Angela Duckworth","Personal Development & Fiction",449,6),
+("The Power of Habit","Charles Duhigg","Personal Development & Fiction",449,8),
+("Tiny Habits","B. J. Fogg","Personal Development & Fiction",449,6),
+("Make Your Bed","William H. McRaven","Personal Development & Fiction",299,7),
+("Awaken the Giant Within","Tony Robbins","Personal Development & Fiction",499,5),
+("You Are a Badass","Jen Sincero","Personal Development & Fiction",399,7),
+("Daring Greatly","Brené Brown","Personal Development & Fiction",449,6),
+("The Gifts of Imperfection","Brené Brown","Personal Development & Fiction",399,6),
+("Big Magic","Elizabeth Gilbert","Personal Development & Fiction",399,5),
+("Essentialism","Greg McKeown","Personal Development & Fiction",449,7),
+("Drive","Daniel H. Pink","Personal Development & Fiction",399,6),
+("Outliers","Malcolm Gladwell","Personal Development & Fiction",449,7),
+("Emotional Intelligence","Daniel Goleman","Personal Development & Fiction",499,5),
+("Influence: The Psychology of Persuasion","Robert B. Cialdini","Personal Development & Fiction",549,6),
+("The Magic of Thinking Big","David J. Schwartz","Personal Development & Fiction",349,7),
+("Eat That Frog!","Brian Tracy","Personal Development & Fiction",299,8),
+("Getting Things Done","David Allen","Personal Development & Fiction",499,5),
+("The Compound Effect","Darren Hardy","Personal Development & Fiction",349,7),
+("The Obstacle Is the Way","Ryan Holiday","Personal Development & Fiction",399,6),
+("Ego Is the Enemy","Ryan Holiday","Personal Development & Fiction",399,6),
+("Meditations","Marcus Aurelius","Personal Development & Fiction",249,9),
+("The Untethered Soul","Michael A. Singer","Personal Development & Fiction",399,6),
+("Quiet","Susan Cain","Personal Development & Fiction",449,5),
+("Never Split the Difference","Chris Voss","Personal Development & Fiction",449,7),
+("12 Rules for Life","Jordan B. Peterson","Personal Development & Fiction",499,6),
+("The Miracle Morning","Hal Elrod","Personal Development & Fiction",349,7),
+("Designing Your Life","Bill Burnett and Dave Evans","Personal Development & Fiction",449,5),
+("How to Stop Worrying and Start Living","Dale Carnegie","Personal Development & Fiction",299,8),
 ]
 
 # The old "Personal Development & Fiction" shelf is split into four clearer subjects.
@@ -527,45 +568,143 @@ def add_to_cart(book_id, quantity=1):
     st.toast("Added to your cart!")
     return True
 
-@st.cache_data(ttl=86400,show_spinner=False)
-def book_cover(title,author):
+# ----------------------- COVERS -----------------------
+# Want to pin a cover yourself? Add  "Exact Book Title": "https://link-to-image.jpg"  below.
+# Pinned covers are always used first.
+COVER_OVERRIDES = {}
+
+# Words that mark study guides, summaries, graphic novels etc. so they are never used as a cover.
+BAD_COVER_WORDS = ("summary","study guide","graphic novel","workbook","analysis","sparknotes","cliffsnotes",
+                   "companion","trivia","coloring","colouring","notes on","a day with","for dummies","journal",
+                   "planner","box set","teacher","lesson plan","quicklet","instaread","audio")
+
+@st.cache_resource
+def cover_store():
+    """Shared across visitors: found covers are remembered; misses are retried after 10 minutes."""
+    return {"hit": {}, "miss": {}}
+
+def cover_title_score(want, got):
+    w, g = norm(want), norm(got)
+    if not g: return 0.0
+    for bad in BAD_COVER_WORDS:
+        if bad in g and bad not in w: return 0.0
+    return max(similarity(w, g), similarity(norm(want.split(":")[0]), norm(got.split(":")[0])))
+
+def cover_author_ok(author, names):
+    if not names: return True
+    tokens = [t for t in norm(author).split() if len(t) > 2]
+    if not tokens: return True
+    words = norm(" ".join(names)).split()
+    return any(t in words for t in tokens)
+
+def cover_image_ok(url):
+    """Download the image and make sure it is a real picture (not a 404 or a tiny 'no image' placeholder)."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "PageNestBookstore/1.0 (demo bookstore)"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            ctype = r.headers.get("Content-Type", "")
+            data = r.read(300000)
+        return ctype.startswith("image") and len(data) > 3000
+    except Exception:
+        return False
+
+def fetch_cover(title, author):
+    """Try Open Library and Google Books several ways. Returns (image_url or None, number_of_failed_requests)."""
     def get_json(url):
-        req=urllib.request.Request(url,headers={"User-Agent":"PageNestBookstore/1.0"})
-        with urllib.request.urlopen(req,timeout=4) as response:
-            return json.loads(response.read().decode("utf-8"))
-    try:
-        url="https://www.googleapis.com/books/v1/volumes?"+urllib.parse.urlencode({
-            "q":f'intitle:"{title}" inauthor:"{author}"',"maxResults":8,"printType":"books"})
-        for item in get_json(url).get("items",[]):
-            info=item.get("volumeInfo",{})
-            if similarity(title,info.get("title",""))<0.58: continue
-            authors=info.get("authors",[])
-            if authors and not any(similarity(author,n)>0.45 for n in authors): continue
-            links=info.get("imageLinks",{})
-            image=links.get("large") or links.get("medium") or links.get("thumbnail") or links.get("smallThumbnail")
-            if image: return image.replace("http://","https://")
-    except Exception: pass
-    try:
-        url="https://openlibrary.org/search.json?"+urllib.parse.urlencode({
-            "title":title,"author":author,"limit":10,"fields":"title,author_name,cover_i"})
-        for item in get_json(url).get("docs",[]):
-            if similarity(title,item.get("title",""))<0.58: continue
-            authors=item.get("author_name",[])
-            if authors and not any(similarity(author,n)>0.45 for n in authors): continue
-            cover_id=item.get("cover_i")
-            if cover_id: return f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg?default=false"
-    except Exception: pass
-    return None
+        req = urllib.request.Request(url, headers={"User-Agent": "PageNestBookstore/1.0 (demo bookstore)"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            return json.loads(r.read().decode("utf-8"))
+    candidates, errors = [], 0
+    last_name = (norm(author).split() or [""])[-1]
+    ol_fields = "title,author_name,cover_i"
+
+    def open_library(params):
+        params = dict(params, limit=10, fields=ol_fields)
+        for item in get_json("https://openlibrary.org/search.json?" + urllib.parse.urlencode(params)).get("docs", []):
+            cid = item.get("cover_i")
+            if not cid or not cover_author_ok(author, item.get("author_name", [])): continue
+            candidates.append((cover_title_score(title, item.get("title", "")),
+                               f"https://covers.openlibrary.org/b/id/{cid}-L.jpg?default=false"))
+
+    def google_books(query):
+        url = "https://www.googleapis.com/books/v1/volumes?" + urllib.parse.urlencode(
+            {"q": query, "maxResults": 10, "printType": "books"})
+        for item in get_json(url).get("items", []):
+            info = item.get("volumeInfo", {})
+            links = info.get("imageLinks", {})
+            image = (links.get("extraLarge") or links.get("large") or links.get("medium")
+                     or links.get("thumbnail") or links.get("smallThumbnail"))
+            if not image or not cover_author_ok(author, info.get("authors", [])): continue
+            candidates.append((cover_title_score(title, info.get("title", "")) - 0.02,
+                               image.replace("http://", "https://").replace("&edge=curl", "")))
+
+    lookups = [
+        lambda: open_library({"title": title, "author": author}),
+        lambda: google_books(f'intitle:"{title}" inauthor:{last_name}'),
+        lambda: open_library({"q": f"{title} {author}"}),
+        lambda: google_books(f"{title} {author}"),
+        lambda: open_library({"title": title}),
+    ]
+    tried = set()
+    for lookup in lookups:
+        try: lookup()
+        except Exception: errors += 1
+        for score, url in sorted(candidates, key=lambda c: -c[0]):
+            if score < 0.72 or url in tried: continue
+            tried.add(url)
+            if cover_image_ok(url): return url, errors
+    return None, errors
+
+def remember_cover(book, url, errors):
+    store = cover_store()
+    key = (book["title"], book["author"])
+    if url: store["hit"][key] = url
+    else: store["miss"][key] = time.time() - (540 if errors else 0)  # after network errors retry in ~1 minute
+
+def prefetch_covers(books):
+    """Look up several covers at once so pages load quickly."""
+    store, now = cover_store(), time.time()
+    todo = [b for b in books if b["title"] not in COVER_OVERRIDES
+            and (b["title"], b["author"]) not in store["hit"]
+            and now - store["miss"].get((b["title"], b["author"]), 0) >= 600]
+    if not todo: return
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(fetch_cover, b["title"], b["author"]): b for b in todo}
+        for future in as_completed(futures):
+            try: url, errors = future.result()
+            except Exception: url, errors = None, 1
+            remember_cover(futures[future], url, errors)
+
+def book_cover(title, author):
+    if title in COVER_OVERRIDES: return COVER_OVERRIDES[title]
+    store, key = cover_store(), (title, author)
+    if key in store["hit"]: return store["hit"][key]
+    if time.time() - store["miss"].get(key, 0) < 600: return None
+    url, errors = fetch_cover(title, author)
+    remember_cover({"title": title, "author": author}, url, errors)
+    return url
+
+COVER_GRADIENTS = [("#14213D","#2F4858"),("#1F3A2E","#3F6B55"),("#5B3A5E","#2F2540"),("#8C3B2E","#3E1713"),
+                   ("#3D5A80","#16263D"),("#6B5A2E","#2B230E"),("#2F4858","#0F1E27"),("#7A4E3A","#2E1A12")]
+
+def generated_cover_html(book):
+    """A designed cover (title + author) used only when no real cover image could be found."""
+    a, b = COVER_GRADIENTS[sum(map(ord, book["title"])) % len(COVER_GRADIENTS)]
+    n = len(book["title"])
+    size = 22 if n <= 20 else 18 if n <= 40 else 15
+    return (f'<div class="gen-cover" style="background:linear-gradient(160deg,{a},{b})"><div class="gc-rule"></div>'
+            f'<div class="gc-title" style="font-size:{size}px">{html.escape(book["title"])}</div><div class="gc-rule"></div>'
+            f'<div class="gc-author" style="margin-top:14px">{html.escape(book["author"]).upper()}</div></div>')
 
 def show_cover(book, search_link=False):
-    cover=book_cover(book["title"],book["author"])
+    cover = book_cover(book["title"], book["author"])
     if cover:
-        st.image(cover,use_container_width=True)
+        st.image(cover, use_container_width=True)
     else:
-        st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#F3ECDF;border-radius:8px;font-size:48px">📚</div>',unsafe_allow_html=True)
+        st.markdown(generated_cover_html(book), unsafe_allow_html=True)
         if search_link:
-            q=urllib.parse.quote(f'{book["title"]} {book["author"]} book cover')
-            st.markdown(f"[Search for the actual cover](https://www.google.com/search?tbm=isch&q={q})")
+            q = urllib.parse.quote(f'{book["title"]} {book["author"]} book cover')
+            st.markdown(f"[Find a cover image](https://www.google.com/search?tbm=isch&q={q})")
 
 def render_book_card(book,prefix="book"):
     with st.container(border=True):
@@ -850,6 +989,30 @@ with st.sidebar:
         st.session_state.support_messages.append({"role":"assistant","content":reply})
         st.rerun()
 
+with st.sidebar:
+    st.divider()
+    with st.expander("🔧 Cover checker"):
+        st.caption("Looks up a cover for every book and lists any that are still missing. This can take a minute or two.")
+        if st.button("Check all covers",key="cover_check_btn",use_container_width=True):
+            _store=cover_store()
+            _store["miss"].clear()
+            _bar=st.progress(0.0,text="Checking covers...")
+            for _start in range(0,len(BOOKS),24):
+                prefetch_covers(BOOKS[_start:_start+24])
+                _done=min(_start+24,len(BOOKS))
+                _bar.progress(_done/len(BOOKS),text=f"Checked {_done} of {len(BOOKS)}")
+            _bar.empty()
+            st.session_state.cover_report=[f'{b["title"]} — {b["author"]}' for b in BOOKS
+                                           if (b["title"],b["author"]) not in _store["hit"] and b["title"] not in COVER_OVERRIDES]
+        _report=st.session_state.get("cover_report")
+        if _report is not None:
+            if not _report:
+                st.success("Every book has a cover image.")
+            else:
+                st.warning(f"{len(_report)} book(s) have no cover image yet. They show a designed cover instead. "
+                           "To pin a picture, add the title and an image link to COVER_OVERRIDES in the code.")
+                st.write("\n".join(f"- {line}" for line in _report))
+
 # ----------------------- TOP BAR, NAV & HERO -----------------------
 st.markdown(announce_html(), unsafe_allow_html=True)
 
@@ -933,6 +1096,7 @@ if st.session_state.page=="Catalogue":
     ]
     # Only the first 8 are shown up front so the page loads quickly; every title is still in Browse All Books.
     shown_featured = featured_titles[:8]
+    prefetch_covers([b for b in BOOKS if b["title"] in {t[0] for t in shown_featured}])
     for row_start in range(0, len(shown_featured), 4):
         featured_cols = st.columns(4)
         for featured_col, (featured_title, tagline, banner_label) in zip(featured_cols, shown_featured[row_start:row_start + 4]):
@@ -992,6 +1156,7 @@ if st.session_state.page=="Catalogue":
             st.session_state.find_book_title=search_query.strip()
             go("Find a Book")
     pager("top")
+    prefetch_covers(page_books)
     for start in range(0,len(page_books),3):
         cols=st.columns(3)
         for col,book in zip(cols,page_books[start:start+3]):
