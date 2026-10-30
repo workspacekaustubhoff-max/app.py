@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import urllib.parse
 import urllib.request
 import json
@@ -186,6 +187,12 @@ CATEGORY_TILES = [
 ]
 
 
+def flat(s):
+    """Collapse multi-line HTML into one line. Markdown treats blank lines followed by
+    indented text as a code block, which is what made raw <div> text appear on screen."""
+    return "".join(line.strip() for line in s.splitlines())
+
+
 def announce_html():
     return ('<div class="announce"><span>🚚 Free standard delivery on every order</span>'
             '<span>✦ Books that inspire, stories that stay.</span>'
@@ -197,7 +204,7 @@ def hero_html(book_count, subject_count, cart_total, show_cta):
     if show_cta:
         cta = ('<div class="hero-cta"><a class="btn-solid" href="#browse-all">Shop now &rarr;</a>'
                '<a class="btn-line" href="#categories">Explore collection</a></div>')
-    return f"""
+    return flat(f"""
 <div class="hero">
   <div class="hero-copy">
     <div class="eyebrow">Discover. Read. Grow.</div>
@@ -220,7 +227,7 @@ def hero_html(book_count, subject_count, cart_total, show_cta):
     </div>
     <div class="new-badge"><b>New<br>Arrivals</b><small>This Week!</small></div>
   </div>
-</div>"""
+</div>""")
 
 
 def features_html():
@@ -250,7 +257,7 @@ def trust_html():
 
 
 def footer_html():
-    return """<div class="footer">
+    return flat("""<div class="footer">
   <div class="foot-grid">
     <div><div class="foot-brand">PAGENEST</div><div style="font-size:13px;opacity:.85;margin-top:8px">We believe books have the power to change lives.<br>Find your next idea. Discover your next chapter.</div></div>
     <div><h5>Shop</h5><div><div>Catalogue</div><div>Book Bundles</div><div>Bestsellers</div><div>Shopping Cart</div></div></div>
@@ -258,7 +265,7 @@ def footer_html():
     <div><h5>About</h5><div><div>About PageNest</div><div>Demo bookstore</div><div>Sample prices and inventory</div></div></div>
   </div>
   <div class="foot-bottom">PageNest | Books &amp; Learning · Demo bookstore · No real payments processed</div>
-</div>"""
+</div>""")
 
 
 def stock_badge(stock):
@@ -576,6 +583,96 @@ def render_book_card(book,prefix="book"):
         if b2.button("Details",key=f"{prefix}_det_{book['id']}",use_container_width=True):
             open_book(book["id"])
 
+def scroll_to(anchor):
+    """Smoothly scroll the page to an element id (used after Browse / paging)."""
+    components.html(
+        '<script>setTimeout(function(){var d=window.parent.document;var el=d.getElementById("'+anchor+'");'
+        'if(el){el.scrollIntoView({behavior:"smooth",block:"start"});}},350);</script>', height=0)
+
+# ----------------------- ONLINE READING -----------------------
+def find_online_editions(title, author):
+    """Look for a readable online edition via Google Books and Open Library / Internet Archive.
+    Results are remembered for this session; failed lookups are not cached so they can be retried."""
+    cache = st.session_state.setdefault("edition_cache", {})
+    key = (title, author)
+    if key in cache: return cache[key]
+    def get_json(url):
+        req=urllib.request.Request(url,headers={"User-Agent":"PageNestBookstore/1.0"})
+        with urllib.request.urlopen(req,timeout=6) as response:
+            return json.loads(response.read().decode("utf-8"))
+    found={"google":None,"archive":None}
+    errors=0
+    try:
+        url="https://www.googleapis.com/books/v1/volumes?"+urllib.parse.urlencode({
+            "q":f'intitle:"{title}" inauthor:"{author}"',"maxResults":10,"printType":"books"})
+        partial=None
+        for item in get_json(url).get("items",[]):
+            info=item.get("volumeInfo",{})
+            if similarity(title,info.get("title",""))<0.58: continue
+            authors=info.get("authors",[])
+            if authors and not any(similarity(author,n)>0.45 for n in authors): continue
+            acc=item.get("accessInfo",{})
+            view=acc.get("viewability")
+            if view not in ("ALL_PAGES","PARTIAL"): continue
+            cand={"id":item.get("id"),"view":view,"embeddable":bool(acc.get("embeddable")),
+                  "link":info.get("previewLink") or acc.get("webReaderLink")}
+            if view=="ALL_PAGES":
+                found["google"]=cand; break
+            if partial is None: partial=cand
+        if found["google"] is None: found["google"]=partial
+    except Exception:
+        errors+=1
+    try:
+        url="https://openlibrary.org/search.json?"+urllib.parse.urlencode({
+            "title":title,"author":author,"limit":10,"fields":"key,title,author_name,ia,ebook_access"})
+        for item in get_json(url).get("docs",[]):
+            if similarity(title,item.get("title",""))<0.58: continue
+            authors=item.get("author_name",[])
+            if authors and not any(similarity(author,n)>0.45 for n in authors): continue
+            ia=item.get("ia") or []
+            access=item.get("ebook_access")
+            if ia and access in ("public","borrowable"):
+                if found["archive"] is None or access=="public":
+                    found["archive"]={"ia":ia[0],"access":access,"url":"https://openlibrary.org"+item.get("key","")}
+                if access=="public": break
+    except Exception:
+        errors+=1
+    if errors==0: cache[key]=found
+    return found
+
+def reader_frame(src):
+    components.html(
+        f'<iframe src="{html.escape(src)}" style="width:100%;height:740px;border:1px solid #E7DFD0;'
+        'border-radius:12px;background:#fff" allowfullscreen></iframe>', height=750)
+
+def render_online_reader(book):
+    st.markdown(section_title("Read online","Read in your browser, no download needed",eyebrow="Digital edition"),unsafe_allow_html=True)
+    with st.spinner("Looking for an online edition..."):
+        ed=find_online_editions(book["title"],book["author"])
+    g,a=ed["google"],ed["archive"]
+    shown=False
+    if g and g["view"]=="ALL_PAGES" and g["embeddable"]:
+        st.success("The full book is available to read free online (public-domain edition).")
+        reader_frame(f"https://books.google.com/books?id={urllib.parse.quote(g['id'])}&pg=PP1&output=embed"); shown=True
+    elif a and a["access"]=="public":
+        st.success("A free full-text edition is available from the Internet Archive.")
+        reader_frame(f"https://archive.org/embed/{urllib.parse.quote(a['ia'])}"); shown=True
+    elif g and g["embeddable"]:
+        st.info("Preview available: for this title the publisher allows only a limited number of pages to be read online.")
+        reader_frame(f"https://books.google.com/books?id={urllib.parse.quote(g['id'])}&pg=PP1&output=embed"); shown=True
+    if a and a["access"]=="borrowable":
+        st.info("This title can be borrowed digitally for free from Open Library (a free account is needed).")
+    if not shown and not a and not (g and g.get("link")):
+        st.warning("No free online edition was found for this title. A Kindle or other e-book edition may still exist; see the links below.")
+    q=urllib.parse.quote(f'{book["title"]} {book["author"]} kindle ebook')
+    links=[]
+    if g and g.get("link"): links.append(f"[Open in Google Books]({g['link']})")
+    if a: links.append(f"[Open on Open Library]({a['url']})")
+    links.append(f"[Search for a Kindle / e-book edition](https://www.google.com/search?q={q})")
+    st.markdown("  ·  ".join(links))
+    st.caption("Online editions come from Google Books and Open Library / Internet Archive and are not part of this demo order. "
+               "Most recent books offer a preview only; older public-domain books can be read in full.")
+
 # ----------------------- PDF INVOICE -----------------------
 def create_invoice_pdf(order, cart_snapshot):
     """Create a clean A4 invoice with supported currency text and non-overlapping totals."""
@@ -793,6 +890,7 @@ if st.session_state.page=="Catalogue":
             if st.button("Browse",key=f"tile_{idx}",use_container_width=True):
                 st.session_state.tile_cat=tname
                 st.session_state.catalogue_page=0
+                st.session_state.scroll_to_browse=True
                 st.rerun()
 
     st.markdown(section_title("Readers' all-time favourites","Reader favourites right now",eyebrow="Bestsellers",anchor="bestsellers"),unsafe_allow_html=True)
@@ -876,16 +974,17 @@ if st.session_state.page=="Catalogue":
         if t2.button("Show all subjects",key="clear_tile",use_container_width=True):
             st.session_state.tile_cat=None
             st.session_state.catalogue_page=0
+            st.session_state.scroll_to_browse=True
             st.rerun()
 
     def pager(key):
         if total_pages<=1: return
         p1,p2,p3=st.columns([1,2,1])
         if p1.button("← Previous",key=f"prev_{key}",disabled=cur==0,use_container_width=True):
-            st.session_state.catalogue_page=cur-1; st.rerun()
+            st.session_state.catalogue_page=cur-1; st.session_state.scroll_to_browse=True; st.rerun()
         p2.markdown(f'<div style="text-align:center;padding-top:8px">Page {cur+1} of {total_pages}</div>',unsafe_allow_html=True)
         if p3.button("Next →",key=f"next_{key}",disabled=cur>=total_pages-1,use_container_width=True):
-            st.session_state.catalogue_page=cur+1; st.rerun()
+            st.session_state.catalogue_page=cur+1; st.session_state.scroll_to_browse=True; st.rerun()
 
     if not filtered:
         st.info("No books match these filters. Try a different subject or price, or look for it elsewhere.")
@@ -898,6 +997,7 @@ if st.session_state.page=="Catalogue":
         for col,book in zip(cols,page_books[start:start+3]):
             with col: render_book_card(book,"catalogue")
     pager("bottom")
+    if st.session_state.pop("scroll_to_browse",False): scroll_to("browse-all")
 
     # Newsletter banner (demo: nothing is stored or sent)
     with st.form("newsletter_form",clear_on_submit=True):
@@ -943,6 +1043,15 @@ elif st.session_state.page=="Book Details":
             if saved: st.session_state.wishlist.remove(book["id"])
             else: st.session_state.wishlist.append(book["id"])
             st.rerun()
+        if st.session_state.get("reader_open")==book["id"]:
+            if st.button("✕ Close online reader",key=f"reader_close_{book['id']}"):
+                st.session_state.reader_open=None
+                st.rerun()
+        elif st.button("📖 Read online",key=f"reader_open_btn_{book['id']}"):
+            st.session_state.reader_open=book["id"]
+            st.rerun()
+    if st.session_state.get("reader_open")==book["id"]:
+        render_online_reader(book)
     related=[b for b in BOOKS if b["id"]!=book["id"] and (b["author"]==book["author"] or b["category"]==book["category"])]
     related.sort(key=lambda b:(b["author"]!=book["author"],b["title"]))
     related=related[:3]
