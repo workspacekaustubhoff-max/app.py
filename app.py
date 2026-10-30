@@ -12,7 +12,7 @@ from datetime import date, timedelta
 st.set_page_config(page_title="PageNest | Books & Learning", page_icon="📚", layout="wide")
 
 # ----------------------- STYLE -----------------------
-SPINE_COLORS = ["#0F5C5A", "#F2A93B", "#14213D", "#C8553D", "#7A9E7E", "#3D5A80", "#E0C097", "#5B3A5E", "#2F4858"]
+SPINE_COLORS = ["#0F5C5A", "#F2A93B", "#14213D", "#C8553D", "#7A9E7E", "#3D5A80", "#E0C097", "#5B3A5E", "#2F4858", "#8C6A4F"]
 LIGHT_SPINES = {"#F2A93B", "#7A9E7E", "#E0C097"}
 
 CSS = """
@@ -85,13 +85,17 @@ hr{border-color:var(--line)!important}
 /* book card text */
 .meta-top{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:6px 0 4px}
 .pill{display:inline-block;background:#E4EEEA;color:var(--teal-d)!important;border-radius:6px;padding:3px 8px;font-size:11.5px;font-weight:600}
-.badge{font-size:11.5px;font-weight:600;border-radius:6px;padding:3px 8px}
+.badge{font-size:11.5px;font-weight:600;border-radius:6px;padding:3px 8px;display:inline-block}
 .badge.ok{background:#E4EEEA;color:#0A4442!important}
 .badge.low{background:#FCEBC8;color:#7A4B00!important}
 .badge.out{background:#F6DAD3;color:#8A2D17!important}
 .book-title{color:var(--ink)!important;font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.25;min-height:44px}
 .book-author{color:var(--muted)!important;font-size:13px;min-height:34px}
 .book-price{color:var(--teal-d)!important;font-size:22px;font-weight:700;margin:4px 0 6px}
+
+/* order summary rows */
+.sumrow{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.sumrow.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:6px;padding-top:10px;font-size:17px;font-weight:700}
 
 .footer{margin-top:36px;padding:24px;text-align:center;border-radius:14px;background:var(--ink);color:#fff!important}
 .footer *{color:#fff!important}
@@ -102,7 +106,7 @@ st.markdown(CSS, unsafe_allow_html=True)
 
 def hero_html(book_count, categories, cart_total):
     spines = ""
-    for i, cat in enumerate(categories[:9]):
+    for i, cat in enumerate(categories[:10]):
         color = SPINE_COLORS[i % len(SPINE_COLORS)]
         text = "#14213D" if color in LIGHT_SPINES else "#fff"
         height = 120 + (i * 37) % 95
@@ -127,16 +131,17 @@ def section_title(title, note=""):
     return f'<div class="sec"><h2>{html.escape(title)}</h2>{small}</div>'
 
 
-def card_meta_html(book):
-    stock = book["stock"]
+def stock_badge(stock):
     if stock == 0:
-        badge = '<span class="badge out">Out of stock</span>'
-    elif stock <= 3:
-        badge = f'<span class="badge low">Only {stock} left</span>'
-    else:
-        badge = '<span class="badge ok">In stock</span>'
+        return '<span class="badge out">Out of stock</span>'
+    if stock <= 3:
+        return f'<span class="badge low">Only {stock} left</span>'
+    return '<span class="badge ok">In stock</span>'
+
+
+def card_meta_html(book):
     return (
-        f'<div class="meta-top"><span class="pill">{html.escape(book["category"])}</span>{badge}</div>'
+        f'<div class="meta-top"><span class="pill">{html.escape(book["category"])}</span>{stock_badge(book["stock"])}</div>'
         f'<div class="book-title">{html.escape(book["title"])}</div>'
         f'<div class="book-author">by {html.escape(book["author"])}</div>'
         f'<div class="book-price">₹{book["price"]:,}</div>'
@@ -291,29 +296,62 @@ RAW_BOOKS = [
 ("The Da Vinci Code","Dan Brown","Personal Development & Fiction",399,7),
 ("The Fault in Our Stars","John Green","Personal Development & Fiction",349,6),
 ]
-BOOKS = [{"id":i+1,"title":r[0],"author":r[1],"category":r[2],"price":r[3],"stock":r[4]} for i,r in enumerate(RAW_BOOKS)]
-PAGES = ["Catalogue","Book Bundles","Shopping Cart","Checkout","Find a Book"]
 
-# ----------------------- SESSION / NAV FIX -----------------------
-if "page" not in st.session_state or st.session_state.page not in PAGES:
+# The old "Personal Development & Fiction" shelf is split into four clearer subjects.
+THRILLERS = {"The Silent Patient","The Housemaid","The Housemaid's Secret","The Housemaid Is Watching","Never Lie",
+             "The Secret of Secrets","The Thursday Murder Club","The Girl on the Train","The Da Vinci Code"}
+FANTASY_YA = {"Harry Potter and the Philosopher's Stone","The Hobbit","The Lord of the Rings","The Hunger Games",
+              "Sunrise on the Reaping","Onyx Storm","The Fault in Our Stars"}
+FICTION = {"The Alchemist","The Kite Runner","A Thousand Splendid Suns","1984","Animal Farm","The Great Gatsby",
+           "To Kill a Mockingbird","The Book Thief","The Midnight Library","The Little Prince",
+           "Where the Crawdads Sing","It Ends with Us"}
+
+def better_category(title, category):
+    if category != "Personal Development & Fiction": return category
+    if title in THRILLERS: return "Thrillers & Mystery"
+    if title in FANTASY_YA: return "Fantasy & Young Adult"
+    if title in FICTION: return "Fiction & Classics"
+    return "Self-help & Ideas"
+
+BOOKS = [{"id":i+1,"title":r[0],"author":r[1],"category":better_category(r[0],r[2]),"price":r[3],"stock":r[4]} for i,r in enumerate(RAW_BOOKS)]
+PAGES = ["Catalogue","Book Bundles","Shopping Cart","Checkout","Find a Book","About PageNest"]
+ALL_PAGES = PAGES + ["Book Details"]
+PER_PAGE = 12
+STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh",
+          "Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha",
+          "Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+          "Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir",
+          "Ladakh","Lakshadweep","Puducherry"]
+
+# ----------------------- SESSION -----------------------
+if "page" not in st.session_state or st.session_state.page not in ALL_PAGES:
     st.session_state.page = "Catalogue"
-if "navigation_radio" not in st.session_state:
-    st.session_state.navigation_radio = st.session_state.page
 if "cart" not in st.session_state: st.session_state.cart = {}
+if "bundles" not in st.session_state: st.session_state.bundles = []
+if "wishlist" not in st.session_state: st.session_state.wishlist = []
+if "stock" not in st.session_state: st.session_state.stock = {b["id"]: b["stock"] for b in BOOKS}
+if "detail_id" not in st.session_state: st.session_state.detail_id = None
+if "catalogue_page" not in st.session_state: st.session_state.catalogue_page = 0
 if "last_order" not in st.session_state: st.session_state.last_order = None
 if "completed_order" not in st.session_state: st.session_state.completed_order = None
-if "invoice_id" not in st.session_state: st.session_state.invoice_id = None
 if "find_book_title" not in st.session_state: st.session_state.find_book_title = ""
-if "bundle_discount" not in st.session_state: st.session_state.bundle_discount = 0.0
 if "support_messages" not in st.session_state:
     st.session_state.support_messages = [{"role":"assistant","content":"Hi! I'm PageNest Help. Ask me about books, bundles, discounts, checkout, or unavailable titles. This demo doesn't process payments."}]
+
+# Stock shown in the shop follows what is left after confirmed orders in this session.
+for _b in BOOKS:
+    _b["stock"] = st.session_state.stock.get(_b["id"], _b["stock"])
 
 def go(page):
     # Update only the app page state. Do not mutate a widget key after its widget
     # has been instantiated in this run; that causes StreamlitWidgetAlreadyInstantiatedError.
-    if page in PAGES:
+    if page in ALL_PAGES:
         st.session_state.page = page
     st.rerun()
+
+def open_book(book_id):
+    st.session_state.detail_id = book_id
+    go("Book Details")
 
 def get_book(book_id):
     return next(b for b in BOOKS if b["id"] == book_id)
@@ -323,6 +361,17 @@ def cart_count():
 
 def subtotal():
     return sum(get_book(i)["price"] * q for i,q in st.session_state.cart.items())
+
+def bundle_discount():
+    """10% off each bundle, but only while every book of that bundle is still in the cart."""
+    total = 0.0
+    kept = []
+    for ids in st.session_state.bundles:
+        if all(i in st.session_state.cart for i in ids):
+            total += round(sum(get_book(i)["price"] for i in ids) * 0.1, 2)
+            kept.append(ids)
+    st.session_state.bundles = kept
+    return min(total, subtotal())
 
 def norm(value):
     return " ".join(re.sub(r"[^a-zA-Z0-9 ]"," ",str(value).lower()).split())
@@ -335,9 +384,10 @@ def add_to_cart(book_id, quantity=1):
     current=st.session_state.cart.get(book_id,0)
     if current+quantity>book["stock"]:
         st.warning("Sorry, that is more than the available demo stock.")
-    else:
-        st.session_state.cart[book_id]=current+quantity
-        st.toast("Added to your cart!")
+        return False
+    st.session_state.cart[book_id]=current+quantity
+    st.toast("Added to your cart!")
+    return True
 
 @st.cache_data(ttl=86400,show_spinner=False)
 def book_cover(title,author):
@@ -369,24 +419,31 @@ def book_cover(title,author):
     except Exception: pass
     return None
 
-def render_book_card(book,prefix="book"):
-    with st.container(border=True):
-        cover=book_cover(book["title"],book["author"])
-        if cover:
-            st.image(cover,use_container_width=True)
-        else:
-            st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#E4EEEA;border-radius:8px;font-size:48px">📚</div>',unsafe_allow_html=True)
+def show_cover(book, search_link=False):
+    cover=book_cover(book["title"],book["author"])
+    if cover:
+        st.image(cover,use_container_width=True)
+    else:
+        st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#E4EEEA;border-radius:8px;font-size:48px">📚</div>',unsafe_allow_html=True)
+        if search_link:
             q=urllib.parse.quote(f'{book["title"]} {book["author"]} book cover')
             st.markdown(f"[Search for the actual cover](https://www.google.com/search?tbm=isch&q={q})")
+
+def render_book_card(book,prefix="book"):
+    with st.container(border=True):
+        show_cover(book, True)
         st.markdown(card_meta_html(book),unsafe_allow_html=True)
+        b1,b2=st.columns([3,2])
         if book["stock"]>0:
-            if st.button("＋ Add to Cart",key=f"{prefix}_add_{book['id']}",use_container_width=True):
+            if b1.button("＋ Add to Cart",key=f"{prefix}_add_{book['id']}",use_container_width=True):
                 add_to_cart(book["id"])
                 st.rerun()
         else:
-            if st.button("Find this book",key=f"{prefix}_find_{book['id']}",use_container_width=True):
+            if b1.button("Find this book",key=f"{prefix}_find_{book['id']}",use_container_width=True):
                 st.session_state.find_book_title=book["title"]
                 go("Find a Book")
+        if b2.button("Details",key=f"{prefix}_det_{book['id']}",use_container_width=True):
+            open_book(book["id"])
 
 # ----------------------- PDF INVOICE -----------------------
 def create_invoice_pdf(order, cart_snapshot):
@@ -524,14 +581,15 @@ with st.sidebar:
     st.caption("Your personal bookstore")
     # A page-specific key keeps the radio aligned with button-based navigation
     # without changing an already-instantiated widget's state.
-    nav_key = f"navigation_radio_{st.session_state.page}"
-    selected_nav = st.radio("Navigate", PAGES, index=PAGES.index(st.session_state.page), key=nav_key)
-    if selected_nav != st.session_state.page:
+    current_page = st.session_state.page
+    nav_key = f"navigation_radio_{current_page}"
+    selected_nav = st.radio("Navigate", PAGES, index=PAGES.index(current_page) if current_page in PAGES else None, key=nav_key)
+    if selected_nav is not None and selected_nav != current_page:
         st.session_state.page = selected_nav
         st.rerun()
     st.divider()
     st.markdown("### 🔎 Find your next book")
-    search_query=st.text_input("Search title or author",placeholder="e.g. Microeconomics",key="sidebar_search")
+    search_query=st.text_input("Search title or author",placeholder="e.g. mankiw economics",key="sidebar_search")
     categories=["All Subjects"]+sorted(set(b["category"] for b in BOOKS))
     selected_category=st.selectbox("Subject",categories,key="sidebar_subject")
     price_limit=st.slider("Maximum price (₹)",100,1500,1500,100,key="sidebar_price")
@@ -569,9 +627,9 @@ st.markdown(hero_html(len(BOOKS), sorted(set(b["category"] for b in BOOKS)), car
 
 # ----------------------- FILTERED CATALOGUE -----------------------
 filtered=BOOKS.copy()
-if search_query.strip():
-    q=norm(search_query)
-    filtered=[b for b in filtered if q in norm(b["title"]) or q in norm(b["author"]) or q in norm(b["category"])]
+search_tokens=norm(search_query).split()
+if search_tokens:
+    filtered=[b for b in filtered if all(t in norm(b["title"]+" "+b["author"]+" "+b["category"]) for t in search_tokens)]
 if selected_category!="All Subjects": filtered=[b for b in filtered if b["category"]==selected_category]
 filtered=[b for b in filtered if b["price"]<=price_limit]
 if availability=="In Stock": filtered=[b for b in filtered if b["stock"]>0]
@@ -626,32 +684,93 @@ if st.session_state.page=="Catalogue":
             with featured_col:
                 with st.container(border=True):
                     if featured_book:
-                        featured_cover = book_cover(featured_book["title"], featured_book["author"])
-                        if featured_cover:
-                            st.image(featured_cover, use_container_width=True)
-                        else:
-                            st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#14213D;border-radius:8px;color:white;font-size:36px">📚</div>', unsafe_allow_html=True)
+                        show_cover(featured_book)
                         st.markdown(f'<div class="book-title">{html.escape(featured_title)}</div>', unsafe_allow_html=True)
                         st.caption(tagline)
                         st.markdown(f'<div class="book-price">₹{featured_book["price"]:,}</div><span class="pill">{html.escape(banner_label)}</span>', unsafe_allow_html=True)
-                        if st.button("Shop this bestseller", key=f"feature_{featured_book['id']}", use_container_width=True):
-                            if st.session_state.cart.get(featured_book["id"], 0) + 1 <= featured_book["stock"]:
-                                st.session_state.cart[featured_book["id"]] = st.session_state.cart.get(featured_book["id"], 0) + 1
-                                st.toast(f"{featured_title} added to your cart")
-                                st.rerun()
-                            else:
-                                st.warning("Maximum demo stock reached.")
+                        f1, f2 = st.columns([3, 2])
+                        if f1.button("Shop now", key=f"feature_{featured_book['id']}", use_container_width=True):
+                            if add_to_cart(featured_book["id"]): st.rerun()
+                        if f2.button("Details", key=f"feature_det_{featured_book['id']}", use_container_width=True):
+                            open_book(featured_book["id"])
 
-    st.markdown(section_title("Browse all books", f"Showing {len(filtered)} books"),unsafe_allow_html=True)
+    # Sorting + page reset whenever any filter changes
     sort_by=st.selectbox("Sort by",["Recommended","Price: Low to High","Price: High to Low","Title A–Z"],key="sort_catalogue")
+    filter_sig=(search_query,selected_category,price_limit,availability,sort_by)
+    if st.session_state.get("filter_sig")!=filter_sig:
+        st.session_state.filter_sig=filter_sig
+        st.session_state.catalogue_page=0
     if sort_by=="Price: Low to High": filtered.sort(key=lambda b:b["price"])
     elif sort_by=="Price: High to Low": filtered.sort(key=lambda b:b["price"],reverse=True)
     elif sort_by=="Title A–Z": filtered.sort(key=lambda b:b["title"].lower())
-    if not filtered: st.info("No books match these filters. Try a different subject or price.")
-    for start in range(0,len(filtered),3):
+
+    total_pages=max(1,-(-len(filtered)//PER_PAGE))
+    st.session_state.catalogue_page=min(st.session_state.catalogue_page,total_pages-1)
+    cur=st.session_state.catalogue_page
+    first=cur*PER_PAGE
+    page_books=filtered[first:first+PER_PAGE]
+    note=f"Showing {first+1}–{first+len(page_books)} of {len(filtered)} books" if filtered else "No matching books"
+    st.markdown(section_title("Browse all books",note),unsafe_allow_html=True)
+
+    def pager(key):
+        if total_pages<=1: return
+        p1,p2,p3=st.columns([1,2,1])
+        if p1.button("← Previous",key=f"prev_{key}",disabled=cur==0,use_container_width=True):
+            st.session_state.catalogue_page=cur-1; st.rerun()
+        p2.markdown(f'<div style="text-align:center;padding-top:8px">Page {cur+1} of {total_pages}</div>',unsafe_allow_html=True)
+        if p3.button("Next →",key=f"next_{key}",disabled=cur>=total_pages-1,use_container_width=True):
+            st.session_state.catalogue_page=cur+1; st.rerun()
+
+    if not filtered:
+        st.info("No books match these filters. Try a different subject or price, or look for it elsewhere.")
+        if search_query.strip() and st.button("Look for this book in Find a Book",use_container_width=True):
+            st.session_state.find_book_title=search_query.strip()
+            go("Find a Book")
+    pager("top")
+    for start in range(0,len(page_books),3):
         cols=st.columns(3)
-        for col,book in zip(cols,filtered[start:start+3]):
+        for col,book in zip(cols,page_books[start:start+3]):
             with col: render_book_card(book,"catalogue")
+    pager("bottom")
+
+# ----------------------- BOOK DETAILS -----------------------
+elif st.session_state.page=="Book Details":
+    if st.session_state.detail_id is None:
+        go("Catalogue")
+    book=get_book(st.session_state.detail_id)
+    if st.button("← Back to catalogue"): go("Catalogue")
+    d1,d2=st.columns([1,3])
+    with d1:
+        show_cover(book, True)
+    with d2:
+        st.markdown(f'<span class="pill">{html.escape(book["category"])}</span> {stock_badge(book["stock"])}',unsafe_allow_html=True)
+        st.markdown(f"# {book['title']}")
+        st.markdown(f"##### by {book['author']}")
+        st.markdown(f'<div class="book-price" style="font-size:30px">₹{book["price"]:,}</div>',unsafe_allow_html=True)
+        if book["stock"]>0:
+            in_cart=st.session_state.cart.get(book["id"],0)
+            st.caption(f"{book['stock']} copies in demo stock" + (f" · {in_cart} already in your cart" if in_cart else ""))
+            qty=st.number_input("Quantity",min_value=1,max_value=book["stock"],value=1,step=1,key=f"detail_qty_{book['id']}")
+            if st.button("＋ Add to Cart",key=f"detail_add_{book['id']}"):
+                if add_to_cart(book["id"],int(qty)): st.rerun()
+        else:
+            st.warning("Currently unavailable")
+            if st.button("Find this book",key=f"detail_find_{book['id']}"):
+                st.session_state.find_book_title=book["title"]
+                go("Find a Book")
+        saved=book["id"] in st.session_state.wishlist
+        if st.button("♥ Remove from saved" if saved else "♡ Save for later",key=f"detail_wish_{book['id']}"):
+            if saved: st.session_state.wishlist.remove(book["id"])
+            else: st.session_state.wishlist.append(book["id"])
+            st.rerun()
+    related=[b for b in BOOKS if b["id"]!=book["id"] and (b["author"]==book["author"] or b["category"]==book["category"])]
+    related.sort(key=lambda b:(b["author"]!=book["author"],b["title"]))
+    related=related[:3]
+    if related:
+        st.markdown(section_title("You may also like","Same author or subject"),unsafe_allow_html=True)
+        rcols=st.columns(3)
+        for col,rb in zip(rcols,related):
+            with col: render_book_card(rb,"related")
 
 # ----------------------- BUNDLES -----------------------
 elif st.session_state.page=="Book Bundles":
@@ -684,7 +803,7 @@ elif st.session_state.page=="Book Bundles":
                     if st.button("Add bundle to cart",key="bundle_"+norm(title).replace(" ","_"),use_container_width=True):
                         if all(st.session_state.cart.get(b["id"],0)+1<=b["stock"] for b in books):
                             for b in books: st.session_state.cart[b["id"]]=st.session_state.cart.get(b["id"],0)+1
-                            st.session_state.bundle_discount += round(total-discounted,2)
+                            st.session_state.bundles.append([b["id"] for b in books])
                             st.toast("Bundle added with 10% bundle savings.")
                             st.rerun()
                         else: st.error("A title in this bundle does not have enough demo stock.")
@@ -699,13 +818,14 @@ elif st.session_state.page=="Shopping Cart":
         for book_id in list(st.session_state.cart):
             book=get_book(book_id); qty=st.session_state.cart[book_id]
             with st.container(border=True):
-                c1,c2,c3,c4=st.columns([4,1,2,1])
+                c0,c1,c2,c3,c4=st.columns([1,5,1,2,1])
+                with c0: show_cover(book)
                 c1.markdown(f"**{book['title']}**"); c1.caption(f"{book['author']} · {book['category']}")
                 c2.write(f"Qty: {qty}"); c3.write(f"₹{book['price']*qty:,.2f}")
                 if c4.button("Remove",key=f"remove_{book_id}"):
                     del st.session_state.cart[book_id]
                     st.rerun()
-                q1,q2,_=st.columns([1,1,4])
+                q1,q2,_=c1.columns([1,1,3])
                 if q1.button("−",key=f"minus_{book_id}"):
                     if qty<=1: del st.session_state.cart[book_id]
                     else: st.session_state.cart[book_id]=qty-1
@@ -715,12 +835,29 @@ elif st.session_state.page=="Shopping Cart":
                     else: st.warning("Maximum demo stock reached.")
         st.divider()
         amount=subtotal()
-        bundle_discount=min(st.session_state.bundle_discount,amount)
+        bd=bundle_discount()
         st.markdown(f"### Subtotal: ₹{amount:,.2f}")
-        if bundle_discount: st.write(f"Bundle discount: −₹{bundle_discount:,.2f}")
+        if bd: st.write(f"Bundle discount: −₹{bd:,.2f}")
         c1,c2=st.columns(2)
         if c1.button("Continue Shopping",use_container_width=True): go("Catalogue")
         if c2.button("Proceed to Checkout",use_container_width=True): go("Checkout")
+
+    if st.session_state.wishlist:
+        st.markdown(section_title("Saved for later"),unsafe_allow_html=True)
+        for wid in list(st.session_state.wishlist):
+            wb=get_book(wid)
+            with st.container(border=True):
+                w1,w2,w3,w4=st.columns([5,2,2,1])
+                w1.markdown(f"**{wb['title']}**"); w1.caption(wb["author"])
+                w2.write(f"₹{wb['price']:,}")
+                if wb["stock"]>0:
+                    if w3.button("Move to cart",key=f"wmove_{wid}",use_container_width=True):
+                        if add_to_cart(wid):
+                            st.session_state.wishlist.remove(wid); st.rerun()
+                else:
+                    w3.caption("Currently unavailable")
+                if w4.button("✕",key=f"wdel_{wid}"):
+                    st.session_state.wishlist.remove(wid); st.rerun()
 
 # ----------------------- CHECKOUT -----------------------
 elif st.session_state.page=="Checkout":
@@ -753,55 +890,68 @@ elif st.session_state.page=="Checkout":
             if st.button("Browse Books",use_container_width=True): go("Catalogue")
     else:
         amount=subtotal()
-        bundle_discount=min(st.session_state.bundle_discount,amount)
-        with st.form("checkout_form"):
-            st.markdown("### Delivery Details")
-            full_name=st.text_input("Full Name *")
-            email=st.text_input("Email Address *")
-            phone=st.text_input("Phone Number *")
-            address=st.text_area("Delivery Address *")
-            city=st.text_input("City *")
-            state=st.text_input("State *")
-            pincode=st.text_input("PIN Code *")
-            st.markdown("### 🚚 Delivery Options")
-            delivery_option=st.radio(
-                "Choose how you want to receive your books",
-                ["Standard Delivery — Free (5–7 business days)", "Express Delivery — ₹99 (2–3 business days)", "Store Pickup — Free (ready in 1–2 business days)"],
-                index=0,
-                help="Delivery times are estimates for this demo and are not live courier commitments."
-            )
-            delivery_fee=99.0 if delivery_option.startswith("Express Delivery") else 0.0
-            delivery_eta=("2–3 business days" if delivery_option.startswith("Express Delivery") else "ready in 1–2 business days" if delivery_option.startswith("Store Pickup") else "5–7 business days")
-            st.markdown("### 💳 Payment Options")
-            payment_method=st.radio(
-                "Choose a payment method",
-                ["UPI", "Credit / Debit Card", "Net Banking", "Cash on Delivery (COD)"],
-                horizontal=True,
-                help="These are demo selections only. No payment will be collected or processed."
-            )
-            st.markdown("### Invoice Details")
-            gstin=st.text_input("Customer GSTIN (optional)",placeholder="Enter GSTIN if applicable")
-            discount_code=st.text_input("Discount Code",placeholder="Try PAGENEST10")
-            st.caption("PAGENEST10 gives 10% off after bundle savings. Taxes are not calculated in this demo invoice.")
-            submitted=st.form_submit_button("Calculate Total",use_container_width=True)
+        bd=bundle_discount()
+        form_col,sum_col=st.columns([2,1])
+        with sum_col:
+            with st.container(border=True):
+                st.markdown("### Order summary")
+                for i,q in st.session_state.cart.items():
+                    b=get_book(i)
+                    st.markdown(f'<div class="sumrow"><span>{html.escape(b["title"])} × {q}</span><b>₹{b["price"]*q:,}</b></div>',unsafe_allow_html=True)
+                st.markdown(f'<div class="sumrow"><span>Subtotal</span><b>₹{amount:,.2f}</b></div>',unsafe_allow_html=True)
+                if bd:
+                    st.markdown(f'<div class="sumrow"><span>Bundle discount</span><b>−₹{bd:,.2f}</b></div>',unsafe_allow_html=True)
+                st.markdown(f'<div class="sumrow total"><span>Before delivery & code</span><span>₹{max(0,amount-bd):,.2f}</span></div>',unsafe_allow_html=True)
+                st.caption("Delivery fee and discount code are added in the review step.")
+        with form_col:
+            with st.form("checkout_form"):
+                st.markdown("### Delivery Details")
+                full_name=st.text_input("Full Name *")
+                email=st.text_input("Email Address *")
+                phone=st.text_input("Phone Number *")
+                address=st.text_area("Delivery Address *")
+                city=st.text_input("City *")
+                state=st.selectbox("State *",STATES,index=None,placeholder="Choose your state") or ""
+                pincode=st.text_input("PIN Code *",placeholder="6 digits")
+                st.markdown("### 🚚 Delivery Options")
+                delivery_option=st.radio(
+                    "Choose how you want to receive your books",
+                    ["Standard Delivery — Free (5–7 business days)", "Express Delivery — ₹99 (2–3 business days)", "Store Pickup — Free (ready in 1–2 business days)"],
+                    index=0,
+                    help="Delivery times are estimates for this demo and are not live courier commitments."
+                )
+                delivery_fee=99.0 if delivery_option.startswith("Express Delivery") else 0.0
+                delivery_eta=("2–3 business days" if delivery_option.startswith("Express Delivery") else "ready in 1–2 business days" if delivery_option.startswith("Store Pickup") else "5–7 business days")
+                st.markdown("### 💳 Payment Options")
+                payment_method=st.radio(
+                    "Choose a payment method",
+                    ["UPI", "Credit / Debit Card", "Net Banking", "Cash on Delivery (COD)"],
+                    horizontal=True,
+                    help="These are demo selections only. No payment will be collected or processed."
+                )
+                st.markdown("### Invoice Details")
+                gstin=st.text_input("Customer GSTIN (optional)",placeholder="Enter GSTIN if applicable")
+                discount_code=st.text_input("Discount Code",placeholder="Try PAGENEST10")
+                st.caption("PAGENEST10 gives 10% off after bundle savings. Taxes are not calculated in this demo invoice.")
+                submitted=st.form_submit_button("Review order",use_container_width=True)
         if submitted:
             required=[full_name,email,phone,address,city,state,pincode]
             if not all(x.strip() for x in required): st.error("Please complete all required delivery fields.")
             elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",email.strip()): st.error("Please enter a valid email address.")
             elif not re.fullmatch(r"[0-9+\-\s()]{7,20}",phone.strip()): st.error("Please enter a valid phone number.")
-            elif not re.fullmatch(r"[0-9A-Za-z -]{4,10}",pincode.strip()): st.error("Please enter a valid PIN code.")
+            elif not re.fullmatch(r"[1-9][0-9]{5}",pincode.strip()): st.error("PIN code must be 6 digits.")
             elif gstin.strip() and not re.fullmatch(r"[0-9A-Z]{15}",gstin.strip().upper()): st.error("GSTIN should contain 15 alphanumeric characters.")
             else:
-                after_bundle=max(0,amount-bundle_discount)
+                after_bundle=max(0,amount-bd)
                 code_discount=round(after_bundle*.10,2) if discount_code.strip().upper()=="PAGENEST10" else 0
                 if discount_code.strip() and discount_code.strip().upper()!="PAGENEST10":
                     st.warning("Discount code not recognised. Bundle savings remain applied.")
-                total_discount=bundle_discount+code_discount
+                total_discount=bd+code_discount
                 cart_snapshot=[{"title":get_book(i)["title"],"quantity":q,"price":get_book(i)["price"]} for i,q in st.session_state.cart.items()]
                 st.session_state.last_order={
                     "name":full_name.strip(),"email":email.strip(),"phone":phone.strip(),
                     "address":address.strip(),"city":city.strip(),"state":state.strip(),"pincode":pincode.strip(),
-                    "gstin":gstin.strip().upper(),"subtotal":amount,"bundle_discount":bundle_discount,
+                    "gstin":gstin.strip().upper(),"subtotal":amount,"bundle_discount":bd,
                     "code_discount":code_discount,"discount":total_discount,
                     "delivery_option":delivery_option,"delivery_fee":delivery_fee,"delivery_eta":delivery_eta,
                     "payment_method":payment_method,"total":max(0,amount-total_discount+delivery_fee),
@@ -811,7 +961,7 @@ elif st.session_state.page=="Checkout":
                 st.success("Order summary calculated. Review the delivery, payment and final total below.")
         order=st.session_state.last_order
         if order:
-            st.markdown("### Digital Bill Preview")
+            st.markdown(section_title("Review your order"),unsafe_allow_html=True)
             st.write(f"**Invoice:** {order['invoice_id']}  ·  **Date:** {order['order_date']}")
             st.write(f"**Billed to:** {order['name']} · {order['email']}")
             st.write(f"**Delivery:** {order['delivery_option']} · Estimated: {order['delivery_eta']}")
@@ -830,12 +980,13 @@ elif st.session_state.page=="Checkout":
                 st.download_button("⬇ Download Professional PDF Invoice",data=pdf,file_name=f"{order['invoice_id']}.pdf",mime="application/pdf",use_container_width=True)
             except Exception as exc:
                 st.error("Could not create PDF invoice. Check that reportlab is installed in requirements.txt.")
-            if st.button("Confirm Demo Order",use_container_width=True):
+            if st.button("Place demo order",use_container_width=True):
+                for i,q in st.session_state.cart.items():
+                    st.session_state.stock[i]=max(0,st.session_state.stock.get(i,0)-q)
                 st.session_state.completed_order=order
                 st.session_state.cart={}
-                st.session_state.bundle_discount=0.0
+                st.session_state.bundles=[]
                 st.session_state.last_order=None
-                st.success(f"Demo order confirmed. Delivery: {order['delivery_option']}. Payment preference: {order['payment_method']}. No payment was processed.")
                 st.rerun()
 
 # ----------------------- FIND BOOK -----------------------
@@ -859,6 +1010,28 @@ elif st.session_state.page=="Find a Book":
             st.markdown("### Estimated restock")
             st.write(f"Illustrative 7-day estimate: **{eta.strftime('%d %B %Y')}**.")
             st.caption("This is not live supplier inventory or a confirmed delivery date. Contact the seller to verify.")
+
+# ----------------------- ABOUT -----------------------
+elif st.session_state.page=="About PageNest":
+    st.markdown(section_title("About PageNest","A demo bookstore for students and curious readers"),unsafe_allow_html=True)
+    st.write("PageNest brings textbooks, competitive exam guides, business classics and popular reads into one place. Prices and stock are sample data, and no real payments are processed.")
+    a1,a2,a3=st.columns(3)
+    with a1:
+        with st.container(border=True):
+            st.markdown("### How ordering works")
+            st.write("Add books to your cart, fill in your delivery details at checkout, review the total and place your demo order. You can download a PDF invoice for every order.")
+    with a2:
+        with st.container(border=True):
+            st.markdown("### Delivery options")
+            st.write("Standard delivery is free and takes 5–7 business days. Express costs ₹99 and takes 2–3 business days. Store pickup is free and ready in 1–2 business days. These are estimates for this demo.")
+    with a3:
+        with st.container(border=True):
+            st.markdown("### Savings")
+            st.write("Every bundle is 10% off its individual prices. Use the code PAGENEST10 at checkout for another 10% off after bundle savings.")
+    with st.container(border=True):
+        st.markdown("### Can't find a book?")
+        st.write("Use Find a Book to search online sellers and nearby bookstores, or ask PageNest Help in the sidebar.")
+        if st.button("Go to Find a Book"): go("Find a Book")
 
 # ----------------------- FOOTER -----------------------
 st.markdown("""<div class="footer"><strong>PageNest | Books &amp; Learning</strong><br>
