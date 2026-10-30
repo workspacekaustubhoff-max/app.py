@@ -5,52 +5,142 @@ import json
 import re
 import io
 import uuid
+import html
 from difflib import SequenceMatcher
 from datetime import date, timedelta
 
 st.set_page_config(page_title="PageNest | Books & Learning", page_icon="📚", layout="wide")
 
 # ----------------------- STYLE -----------------------
-st.markdown("""
+SPINE_COLORS = ["#0F5C5A", "#F2A93B", "#14213D", "#C8553D", "#7A9E7E", "#3D5A80", "#E0C097", "#5B3A5E", "#2F4858"]
+LIGHT_SPINES = {"#F2A93B", "#7A9E7E", "#E0C097"}
+
+CSS = """
 <style>
-.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],[data-testid="stHeader"]{
- background:#F5F7FB!important;color:#172033!important}
-.block-container{max-width:1450px;padding-top:1.4rem;padding-bottom:3rem}
-h1,h2,h3,h4,p,label,li,[data-testid="stMarkdownContainer"],
-[data-testid="stWidgetLabel"],[data-testid="stCaptionContainer"]{color:#26344B!important}
-[data-testid="stSidebar"]{background:#E8EEF7!important;border-right:1px solid #D6DFEC}
-[data-testid="stSidebar"] *{color:#24334B!important}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
+:root{--bg:#F3F5F2;--ink:#14213D;--muted:#5F6B7A;--line:#DCE3DE;--teal:#0F5C5A;--teal-d:#0A4442;--gold:#F2A93B}
+html,body,.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],[data-testid="stHeader"]{
+ background:var(--bg)!important;color:var(--ink)!important;font-family:'DM Sans',sans-serif}
+.block-container{max-width:1400px;padding-top:1.2rem;padding-bottom:3rem}
+h1,h2,h3,h4{font-family:'Fraunces',serif!important;color:var(--ink)!important;letter-spacing:-.01em}
+p,label,li,[data-testid="stMarkdownContainer"],[data-testid="stWidgetLabel"],[data-testid="stCaptionContainer"]{color:var(--ink)!important}
+[data-testid="stCaptionContainer"]{color:var(--muted)!important}
+footer{visibility:hidden}
+
+/* sidebar */
+[data-testid="stSidebar"]{background:#fff!important;border-right:1px solid var(--line)}
+[data-testid="stSidebar"] *{color:var(--ink)!important}
+[data-testid="stSidebar"] [data-testid="stMetric"]{border:none;padding:6px 0;background:transparent!important}
+
+/* inputs */
 .stTextInput input,.stTextArea textarea,.stNumberInput input{
- background:#fff!important;color:#172033!important;-webkit-text-fill-color:#172033!important;
- border:1px solid #C8D3E2!important;border-radius:8px!important;caret-color:#2458A6!important}
-.stTextInput input::placeholder,.stTextArea textarea::placeholder{color:#758198!important;-webkit-text-fill-color:#758198!important;opacity:1!important}
-[data-baseweb="select"]>div{background:#fff!important;color:#172033!important;border-color:#C8D3E2!important}
-[data-baseweb="select"] input{color:#172033!important;-webkit-text-fill-color:#172033!important}
-[data-baseweb="popover"],[data-baseweb="menu"],[role="listbox"],[role="option"]{background:#fff!important;color:#172033!important}
-[data-testid="stForm"]{background:#fff!important;border:1px solid #DDE5EF!important;border-radius:14px!important;padding:22px!important}
-[data-testid="stForm"] label,[data-testid="stForm"] [data-testid="stWidgetLabel"],
-[data-testid="stForm"] [data-testid="stMarkdownContainer"]{color:#26344B!important}
+ background:#fff!important;color:var(--ink)!important;-webkit-text-fill-color:var(--ink)!important;
+ border:1px solid #C9D3CD!important;border-radius:10px!important;caret-color:var(--teal)!important}
+.stTextInput input:focus,.stTextArea textarea:focus{border-color:var(--teal)!important;box-shadow:0 0 0 2px rgba(15,92,90,.18)!important}
+.stTextInput input::placeholder,.stTextArea textarea::placeholder{color:#7C8794!important;-webkit-text-fill-color:#7C8794!important;opacity:1!important}
+[data-baseweb="select"]>div{background:#fff!important;color:var(--ink)!important;border-color:#C9D3CD!important;border-radius:10px!important}
+[data-baseweb="select"] input{color:var(--ink)!important;-webkit-text-fill-color:var(--ink)!important}
+[data-baseweb="popover"],[data-baseweb="menu"],[role="listbox"],[role="option"]{background:#fff!important;color:var(--ink)!important}
+
+/* buttons */
 .stButton>button,.stFormSubmitButton>button,.stDownloadButton>button{
- background:#2458A6!important;color:#fff!important;border:1px solid #2458A6!important;
- border-radius:9px!important;font-weight:600!important;min-height:2.45rem}
-.stButton>button *, .stFormSubmitButton>button *, .stDownloadButton>button *{color:#fff!important}
-.stButton>button:hover,.stFormSubmitButton>button:hover{background:#183F7C!important}
-[data-testid="stVerticalBlockBorderWrapper"]{background:#fff!important;border-color:#DDE5EF!important;border-radius:14px!important}
-[data-testid="stMetric"]{background:#fff!important;padding:15px;border:1px solid #DDE5EF;border-radius:12px}
-[data-testid="stMetricLabel"],[data-testid="stMetricValue"]{color:#172033!important}
-.hero{background:linear-gradient(120deg,#17345E,#3268A8);border-radius:18px;padding:30px;margin-bottom:24px}
-.hero h1{color:#fff!important;font-size:clamp(30px,4vw,42px);margin-bottom:8px}
-.hero p{color:#EDF4FF!important}
-.pill{display:inline-block;background:#EAF1FF;color:#214E91!important;border-radius:20px;padding:5px 9px;font-size:11px;font-weight:700}
-.book-title{color:#172033!important;font-size:16px;font-weight:700;min-height:42px}
-.book-author{color:#64718A!important;font-size:13px;min-height:35px}
-.book-price{color:#173F7A!important;font-size:21px;font-weight:700;margin:8px 0}
-hr{border-color:#DDE5EF!important}
-.footer{margin-top:35px;padding:22px;text-align:center;border-radius:14px;background:#17345E;color:#fff!important}
+ background:var(--teal)!important;color:#fff!important;border:1px solid var(--teal)!important;
+ border-radius:10px!important;font-weight:600!important;min-height:2.5rem}
+.stButton>button *,.stFormSubmitButton>button *,.stDownloadButton>button *{color:#fff!important}
+.stButton>button:hover,.stFormSubmitButton>button:hover,.stDownloadButton>button:hover{background:var(--teal-d)!important;border-color:var(--teal-d)!important}
+.stButton>button:focus-visible{outline:3px solid var(--gold)!important;outline-offset:2px}
+
+/* cards, forms, metrics */
+[data-testid="stVerticalBlockBorderWrapper"]{background:#fff!important;border:1px solid var(--line)!important;border-radius:14px!important}
+[data-testid="stForm"]{background:#fff!important;border:1px solid var(--line)!important;border-radius:14px!important;padding:22px!important}
+[data-testid="stForm"] label,[data-testid="stForm"] [data-testid="stWidgetLabel"],
+[data-testid="stForm"] [data-testid="stMarkdownContainer"]{color:var(--ink)!important}
+[data-testid="stMetric"]{background:#fff!important;padding:14px;border:1px solid var(--line);border-radius:12px}
+[data-testid="stMetricLabel"],[data-testid="stMetricValue"]{color:var(--ink)!important}
+[data-testid="stChatMessage"]{background:#F3F5F2!important;border:1px solid var(--line);border-radius:12px}
+[data-testid="stImage"] img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:6px 10px 10px 6px;
+ box-shadow:-3px 0 0 rgba(0,0,0,.12),0 6px 16px rgba(20,33,61,.18)}
+hr{border-color:var(--line)!important}
+
+/* hero: a shelf of spines */
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:end;
+ background:var(--ink);border-radius:18px;padding:34px 34px 0;margin-bottom:22px;overflow:hidden}
+.hero h1{color:#fff!important;font-size:clamp(30px,4.2vw,48px);line-height:1.08;margin:0 0 12px}
+.hero p{color:#D6DEEA!important;font-size:16px;max-width:46ch;margin:0 0 22px;line-height:1.55}
+.hero-facts{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:28px}
+.hero-facts span{color:#fff!important;font-size:14px}
+.hero-facts b{color:var(--gold)!important;font-family:'Fraunces',serif;font-size:20px;margin-right:6px}
+.shelf{display:flex;align-items:flex-end;gap:5px;height:230px;border-bottom:10px solid #0B1428;padding:0 6px}
+.spine{flex:1;max-width:46px;border-radius:3px 3px 0 0;display:flex;align-items:center;justify-content:center;
+ box-shadow:inset -3px 0 rgba(0,0,0,.18)}
+.spine span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11.5px;font-weight:600;white-space:nowrap;
+ overflow:hidden;max-height:92%;padding:6px 0}
+@media(max-width:800px){.hero{grid-template-columns:1fr}.shelf{height:150px}}
+
+/* section titles */
+.sec{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.sec h2{margin:0;font-size:26px}
+.sec small{color:var(--muted)!important;font-size:14px}
+
+/* book card text */
+.meta-top{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:6px 0 4px}
+.pill{display:inline-block;background:#E4EEEA;color:var(--teal-d)!important;border-radius:6px;padding:3px 8px;font-size:11.5px;font-weight:600}
+.badge{font-size:11.5px;font-weight:600;border-radius:6px;padding:3px 8px}
+.badge.ok{background:#E4EEEA;color:#0A4442!important}
+.badge.low{background:#FCEBC8;color:#7A4B00!important}
+.badge.out{background:#F6DAD3;color:#8A2D17!important}
+.book-title{color:var(--ink)!important;font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.25;min-height:44px}
+.book-author{color:var(--muted)!important;font-size:13px;min-height:34px}
+.book-price{color:var(--teal-d)!important;font-size:22px;font-weight:700;margin:4px 0 6px}
+
+.footer{margin-top:36px;padding:24px;text-align:center;border-radius:14px;background:var(--ink);color:#fff!important}
 .footer *{color:#fff!important}
-[data-testid="stChatMessage"]{background:#fff!important;border:1px solid #DDE5EF;border-radius:12px}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CSS, unsafe_allow_html=True)
+
+
+def hero_html(book_count, categories, cart_total):
+    spines = ""
+    for i, cat in enumerate(categories[:9]):
+        color = SPINE_COLORS[i % len(SPINE_COLORS)]
+        text = "#14213D" if color in LIGHT_SPINES else "#fff"
+        height = 120 + (i * 37) % 95
+        spines += f'<div class="spine" style="background:{color};height:{height}px"><span style="color:{text}">{html.escape(cat)}</span></div>'
+    return f"""
+<div class="hero">
+  <div>
+    <h1>Find the book you'll finish.</h1>
+    <p>Textbooks, exam guides, business classics and bestsellers, picked for students and curious readers.</p>
+    <div class="hero-facts">
+      <span><b>{book_count}</b>books</span>
+      <span><b>{len(categories)}</b>subjects</span>
+      <span><b>{cart_total}</b>in your cart</span>
+    </div>
+  </div>
+  <div class="shelf">{spines}</div>
+</div>"""
+
+
+def section_title(title, note=""):
+    small = f"<small>{html.escape(note)}</small>" if note else ""
+    return f'<div class="sec"><h2>{html.escape(title)}</h2>{small}</div>'
+
+
+def card_meta_html(book):
+    stock = book["stock"]
+    if stock == 0:
+        badge = '<span class="badge out">Out of stock</span>'
+    elif stock <= 3:
+        badge = f'<span class="badge low">Only {stock} left</span>'
+    else:
+        badge = '<span class="badge ok">In stock</span>'
+    return (
+        f'<div class="meta-top"><span class="pill">{html.escape(book["category"])}</span>{badge}</div>'
+        f'<div class="book-title">{html.escape(book["title"])}</div>'
+        f'<div class="book-author">by {html.escape(book["author"])}</div>'
+        f'<div class="book-price">₹{book["price"]:,}</div>'
+    )
 
 # ----------------------- CATALOGUE -----------------------
 RAW_BOOKS = [
@@ -285,20 +375,15 @@ def render_book_card(book,prefix="book"):
         if cover:
             st.image(cover,use_container_width=True)
         else:
-            st.markdown('<div style="height:180px;display:flex;align-items:center;justify-content:center;background:#EAF1FB;border-radius:10px;font-size:48px">📚</div>',unsafe_allow_html=True)
+            st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#E4EEEA;border-radius:8px;font-size:48px">📚</div>',unsafe_allow_html=True)
             q=urllib.parse.quote(f'{book["title"]} {book["author"]} book cover')
             st.markdown(f"[Search for the actual cover](https://www.google.com/search?tbm=isch&q={q})")
-        st.markdown(f'<div class="book-title">{book["title"]}</div>',unsafe_allow_html=True)
-        st.markdown(f'<div class="book-author">{book["author"]}</div>',unsafe_allow_html=True)
-        st.markdown(f'<span class="pill">{book["category"]}</span>',unsafe_allow_html=True)
-        st.markdown(f'<div class="book-price">₹{book["price"]:,}</div>',unsafe_allow_html=True)
+        st.markdown(card_meta_html(book),unsafe_allow_html=True)
         if book["stock"]>0:
-            st.caption(f'{book["stock"]} copies in demo stock')
             if st.button("＋ Add to Cart",key=f"{prefix}_add_{book['id']}",use_container_width=True):
                 add_to_cart(book["id"])
                 st.rerun()
         else:
-            st.warning("Currently unavailable")
             if st.button("Find this book",key=f"{prefix}_find_{book['id']}",use_container_width=True):
                 st.session_state.find_book_title=book["title"]
                 go("Find a Book")
@@ -480,15 +565,7 @@ with st.sidebar:
         st.rerun()
 
 # ----------------------- GLOBAL HERO -----------------------
-st.markdown("""
-<div class="hero"><h1>📚 PageNest</h1>
-<p>Books, ideas and possibilities — all in one place.</p>
-<p>Discover textbooks, business classics, competitive exam guides and research resources.</p></div>
-""",unsafe_allow_html=True)
-m1,m2,m3=st.columns(3)
-m1.metric("Books in Catalogue",len(BOOKS))
-m2.metric("Subject Categories",len(set(b["category"] for b in BOOKS)))
-m3.metric("Items in Your Cart",cart_count())
+st.markdown(hero_html(len(BOOKS), sorted(set(b["category"] for b in BOOKS)), cart_count()), unsafe_allow_html=True)
 
 # ----------------------- FILTERED CATALOGUE -----------------------
 filtered=BOOKS.copy()
@@ -502,11 +579,8 @@ elif availability=="Out of Stock": filtered=[b for b in filtered if b["stock"]==
 
 # ----------------------- CATALOGUE PAGE -----------------------
 if st.session_state.page=="Catalogue":
-    st.markdown("## Explore the Catalogue")
+    st.markdown(section_title("Featured bestsellers","Reader favourites right now"),unsafe_allow_html=True)
 
-    # Featured bestseller banners. Cover images are retrieved through the same
-    # Google Books / Open Library lookup used by the catalogue cards.
-    st.markdown("### ⭐ Featured Bestsellers")
     featured_titles = [
         ("Rich Dad Poor Dad", "Build your financial mindset", "Money & Personal Finance"),
         ("Ikigai", "Discover your reason for being", "Mindfulness & Wellbeing"),
@@ -543,10 +617,11 @@ if st.session_state.page=="Catalogue":
         ("The Da Vinci Code", "A fast-paced mystery of codes and history", "Thriller"),
         ("The Fault in Our Stars", "A moving story of love and hope", "Young Adult"),
     ]
-    # Display every featured book in rows of four, not just the first four.
-    for row_start in range(0, len(featured_titles), 4):
+    # Only the first 8 are shown up front so the page loads quickly; every title is still in Browse All Books.
+    shown_featured = featured_titles[:8]
+    for row_start in range(0, len(shown_featured), 4):
         featured_cols = st.columns(4)
-        for featured_col, (featured_title, tagline, banner_label) in zip(featured_cols, featured_titles[row_start:row_start + 4]):
+        for featured_col, (featured_title, tagline, banner_label) in zip(featured_cols, shown_featured[row_start:row_start + 4]):
             featured_book = next((b for b in BOOKS if b["title"] == featured_title), None)
             with featured_col:
                 with st.container(border=True):
@@ -555,10 +630,10 @@ if st.session_state.page=="Catalogue":
                         if featured_cover:
                             st.image(featured_cover, use_container_width=True)
                         else:
-                            st.markdown('<div style="height:150px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#17345E,#3268A8);border-radius:10px;color:white;font-size:36px">📚</div>', unsafe_allow_html=True)
-                        st.markdown(f"**{featured_title}**")
+                            st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#14213D;border-radius:8px;color:white;font-size:36px">📚</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="book-title">{html.escape(featured_title)}</div>', unsafe_allow_html=True)
                         st.caption(tagline)
-                        st.markdown(f"**₹{featured_book['price']:,}** · {banner_label}")
+                        st.markdown(f'<div class="book-price">₹{featured_book["price"]:,}</div><span class="pill">{html.escape(banner_label)}</span>', unsafe_allow_html=True)
                         if st.button("Shop this bestseller", key=f"feature_{featured_book['id']}", use_container_width=True):
                             if st.session_state.cart.get(featured_book["id"], 0) + 1 <= featured_book["stock"]:
                                 st.session_state.cart[featured_book["id"]] = st.session_state.cart.get(featured_book["id"], 0) + 1
@@ -567,8 +642,7 @@ if st.session_state.page=="Catalogue":
                             else:
                                 st.warning("Maximum demo stock reached.")
 
-    st.markdown("### Browse All Books")
-    st.caption(f"Showing {len(filtered)} books.")
+    st.markdown(section_title("Browse all books", f"Showing {len(filtered)} books"),unsafe_allow_html=True)
     sort_by=st.selectbox("Sort by",["Recommended","Price: Low to High","Price: High to Low","Title A–Z"],key="sort_catalogue")
     if sort_by=="Price: Low to High": filtered.sort(key=lambda b:b["price"])
     elif sort_by=="Price: High to Low": filtered.sort(key=lambda b:b["price"],reverse=True)
@@ -581,7 +655,7 @@ if st.session_state.page=="Catalogue":
 
 # ----------------------- BUNDLES -----------------------
 elif st.session_state.page=="Book Bundles":
-    st.markdown("## 🎓 Curated Book Bundles")
+    st.markdown(section_title("Curated book bundles","Each bundle gets 10% off"),unsafe_allow_html=True)
     st.write("Useful starter packs for different courses and exams. Each bundle gets 10% off its listed individual prices.")
     bundles=[
       ("Commerce & BBA Starter Bundle","For introductory commerce and BBA courses",["Principles of Economics","Principles of Management","Financial Accounting","Business Mathematics"]),
@@ -617,7 +691,7 @@ elif st.session_state.page=="Book Bundles":
 
 # ----------------------- CART -----------------------
 elif st.session_state.page=="Shopping Cart":
-    st.markdown("## 🛒 Your Shopping Cart")
+    st.markdown(section_title("Your shopping cart"),unsafe_allow_html=True)
     if not st.session_state.cart:
         st.info("Your cart is empty.")
         if st.button("Continue Shopping",use_container_width=True): go("Catalogue")
@@ -650,7 +724,7 @@ elif st.session_state.page=="Shopping Cart":
 
 # ----------------------- CHECKOUT -----------------------
 elif st.session_state.page=="Checkout":
-    st.markdown("## Checkout & Digital Invoice")
+    st.markdown(section_title("Checkout & digital invoice"),unsafe_allow_html=True)
     if not st.session_state.cart:
         completed = st.session_state.get("completed_order")
         if completed:
@@ -766,8 +840,7 @@ elif st.session_state.page=="Checkout":
 
 # ----------------------- FIND BOOK -----------------------
 elif st.session_state.page=="Find a Book":
-    st.markdown("## 🔎 Find a Book")
-    st.write("Search online sellers or locate nearby bookstores.")
+    st.markdown(section_title("Find a book","Search online sellers or nearby stores"),unsafe_allow_html=True)
     find_title=st.text_input("Book title",value=st.session_state.find_book_title,key="find_title_input")
     find_author=st.text_input("Author (optional)",key="find_author_input")
     search_city=st.text_input("City or area",placeholder="e.g. Sonipat, Haryana",key="find_city_input")
