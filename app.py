@@ -12,17 +12,15 @@ from datetime import date, timedelta
 st.set_page_config(page_title="PageNest | Books & Learning", page_icon="📚", layout="wide")
 
 # ----------------------- STYLE -----------------------
-SPINE_COLORS = ["#0F5C5A", "#F2A93B", "#14213D", "#C8553D", "#7A9E7E", "#3D5A80", "#E0C097", "#5B3A5E", "#2F4858", "#8C6A4F"]
-LIGHT_SPINES = {"#F2A93B", "#7A9E7E", "#E0C097"}
-
 CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
-:root{--bg:#F3F5F2;--ink:#14213D;--muted:#5F6B7A;--line:#DCE3DE;--teal:#0F5C5A;--teal-d:#0A4442;--gold:#F2A93B}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+:root{--bg:#FBF8F3;--ink:#1B2A22;--muted:#6B6F68;--line:#E7DFD0;--forest:#1F3A2E;--forest-d:#152A20;--gold:#B8955A;--cream:#F3ECDF}
+html{scroll-behavior:smooth}
 html,body,.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],[data-testid="stHeader"]{
- background:var(--bg)!important;color:var(--ink)!important;font-family:'DM Sans',sans-serif}
-.block-container{max-width:1400px;padding-top:1.2rem;padding-bottom:3rem}
-h1,h2,h3,h4{font-family:'Fraunces',serif!important;color:var(--ink)!important;letter-spacing:-.01em}
+ background:var(--bg)!important;color:var(--ink)!important;font-family:'Inter',sans-serif}
+.block-container{max-width:1280px;padding-top:1rem;padding-bottom:3rem}
+h1,h2,h3,h4{font-family:'Playfair Display',serif!important;color:var(--ink)!important;letter-spacing:-.01em}
 p,label,li,[data-testid="stMarkdownContainer"],[data-testid="stWidgetLabel"],[data-testid="stCaptionContainer"]{color:var(--ink)!important}
 [data-testid="stCaptionContainer"]{color:var(--muted)!important}
 footer{visibility:hidden}
@@ -35,100 +33,232 @@ footer{visibility:hidden}
 /* inputs */
 .stTextInput input,.stTextArea textarea,.stNumberInput input{
  background:#fff!important;color:var(--ink)!important;-webkit-text-fill-color:var(--ink)!important;
- border:1px solid #C9D3CD!important;border-radius:10px!important;caret-color:var(--teal)!important}
-.stTextInput input:focus,.stTextArea textarea:focus{border-color:var(--teal)!important;box-shadow:0 0 0 2px rgba(15,92,90,.18)!important}
-.stTextInput input::placeholder,.stTextArea textarea::placeholder{color:#7C8794!important;-webkit-text-fill-color:#7C8794!important;opacity:1!important}
-[data-baseweb="select"]>div{background:#fff!important;color:var(--ink)!important;border-color:#C9D3CD!important;border-radius:10px!important}
+ border:1px solid #D8D0BF!important;border-radius:8px!important;caret-color:var(--forest)!important}
+.stTextInput input:focus,.stTextArea textarea:focus{border-color:var(--forest)!important;box-shadow:0 0 0 2px rgba(31,58,46,.18)!important}
+.stTextInput input::placeholder,.stTextArea textarea::placeholder{color:#8A8F88!important;-webkit-text-fill-color:#8A8F88!important;opacity:1!important}
+[data-baseweb="select"]>div{background:#fff!important;color:var(--ink)!important;border-color:#D8D0BF!important;border-radius:8px!important}
 [data-baseweb="select"] input{color:var(--ink)!important;-webkit-text-fill-color:var(--ink)!important}
 [data-baseweb="popover"],[data-baseweb="menu"],[role="listbox"],[role="option"]{background:#fff!important;color:var(--ink)!important}
 
 /* buttons */
 .stButton>button,.stFormSubmitButton>button,.stDownloadButton>button{
- background:var(--teal)!important;color:#fff!important;border:1px solid var(--teal)!important;
- border-radius:10px!important;font-weight:600!important;min-height:2.5rem}
+ background:var(--forest)!important;color:#fff!important;border:1px solid var(--forest)!important;
+ border-radius:6px!important;font-weight:600!important;min-height:2.5rem;letter-spacing:.02em}
 .stButton>button *,.stFormSubmitButton>button *,.stDownloadButton>button *{color:#fff!important}
-.stButton>button:hover,.stFormSubmitButton>button:hover,.stDownloadButton>button:hover{background:var(--teal-d)!important;border-color:var(--teal-d)!important}
+.stButton>button:hover,.stFormSubmitButton>button:hover,.stDownloadButton>button:hover{background:var(--forest-d)!important;border-color:var(--forest-d)!important}
 .stButton>button:focus-visible{outline:3px solid var(--gold)!important;outline-offset:2px}
 
 /* cards, forms, metrics */
-[data-testid="stVerticalBlockBorderWrapper"]{background:#fff!important;border:1px solid var(--line)!important;border-radius:14px!important}
+[data-testid="stVerticalBlockBorderWrapper"]{background:#fff!important;border:1px solid var(--line)!important;border-radius:14px!important;
+ box-shadow:0 6px 20px rgba(27,42,34,.05)}
 [data-testid="stForm"]{background:#fff!important;border:1px solid var(--line)!important;border-radius:14px!important;padding:22px!important}
 [data-testid="stForm"] label,[data-testid="stForm"] [data-testid="stWidgetLabel"],
 [data-testid="stForm"] [data-testid="stMarkdownContainer"]{color:var(--ink)!important}
 [data-testid="stMetric"]{background:#fff!important;padding:14px;border:1px solid var(--line);border-radius:12px}
 [data-testid="stMetricLabel"],[data-testid="stMetricValue"]{color:var(--ink)!important}
-[data-testid="stChatMessage"]{background:#F3F5F2!important;border:1px solid var(--line);border-radius:12px}
-[data-testid="stImage"] img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:6px 10px 10px 6px;
- box-shadow:-3px 0 0 rgba(0,0,0,.12),0 6px 16px rgba(20,33,61,.18)}
+[data-testid="stChatMessage"]{background:var(--bg)!important;border:1px solid var(--line);border-radius:12px}
+[data-testid="stImage"] img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:3px 8px 8px 3px;
+ box-shadow:-3px 0 0 rgba(0,0,0,.12),0 8px 18px rgba(27,42,34,.2)}
 hr{border-color:var(--line)!important}
 
-/* hero: a shelf of spines */
-.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:end;
- background:var(--ink);border-radius:18px;padding:34px 34px 0;margin-bottom:22px;overflow:hidden}
-.hero h1{color:#fff!important;font-size:clamp(30px,4.2vw,48px);line-height:1.08;margin:0 0 12px}
-.hero p{color:#D6DEEA!important;font-size:16px;max-width:46ch;margin:0 0 22px;line-height:1.55}
-.hero-facts{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:28px}
-.hero-facts span{color:#fff!important;font-size:14px}
-.hero-facts b{color:var(--gold)!important;font-family:'Fraunces',serif;font-size:20px;margin-right:6px}
-.shelf{display:flex;align-items:flex-end;gap:5px;height:230px;border-bottom:10px solid #0B1428;padding:0 6px}
-.spine{flex:1;max-width:46px;border-radius:3px 3px 0 0;display:flex;align-items:center;justify-content:center;
- box-shadow:inset -3px 0 rgba(0,0,0,.18)}
-.spine span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11.5px;font-weight:600;white-space:nowrap;
- overflow:hidden;max-height:92%;padding:6px 0}
-@media(max-width:800px){.hero{grid-template-columns:1fr}.shelf{height:150px}}
+/* announcement bar */
+.announce{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--forest);border-radius:10px;
+ padding:9px 20px;margin-bottom:10px}
+.announce span{color:#fff!important;font-size:12.5px;letter-spacing:.02em}
+
+/* top navigation (real buttons, styled as text links) */
+[data-testid="stHorizontalBlock"]:has(.topnav-marker){align-items:center;background:#fff;border:1px solid var(--line);
+ border-radius:12px;padding:6px 14px;margin-bottom:14px}
+[data-testid="stHorizontalBlock"]:has(.topnav-marker) .stButton>button{
+ background:transparent!important;border:none!important;box-shadow:none!important;color:var(--ink)!important;
+ font-size:12px!important;letter-spacing:.1em;text-transform:uppercase;font-weight:600!important;min-height:2.2rem;border-radius:0!important}
+[data-testid="stHorizontalBlock"]:has(.topnav-marker) .stButton>button *{color:var(--ink)!important}
+[data-testid="stHorizontalBlock"]:has(.topnav-marker) .stButton>button:hover{background:transparent!important;
+ border-bottom:2px solid var(--gold)!important}
+.brand{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;letter-spacing:.14em;color:var(--ink)!important;line-height:1.1}
+.brand small{display:block;font-family:'Inter',sans-serif;font-size:9.5px;letter-spacing:.32em;font-weight:500;color:var(--muted)!important}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;
+ background:linear-gradient(100deg,#FBF8F3 0%,#F4EBDA 48%,#E3CDA6 100%);border-radius:20px;overflow:hidden;margin:4px 0 22px;min-height:400px}
+.hero-copy{padding:46px 40px;display:flex;flex-direction:column;justify-content:center}
+.eyebrow{color:var(--gold)!important;font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase}
+.hero h1{font-size:clamp(34px,4.6vw,56px);line-height:1.07;margin:12px 0 16px}
+.hero p{color:#3C4A41!important;font-size:16px;max-width:40ch;margin:0 0 24px;line-height:1.6}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:26px}
+.btn-solid,.btn-line{display:inline-block;padding:13px 26px;border-radius:6px;font-weight:600;font-size:12.5px;letter-spacing:.1em;
+ text-transform:uppercase;text-decoration:none!important}
+.btn-solid{background:var(--forest);color:#fff!important}
+.btn-line{border:1px solid var(--ink);color:var(--ink)!important;background:rgba(255,255,255,.4)}
+.hero-facts{display:flex;gap:26px;flex-wrap:wrap}
+.hero-facts span{color:var(--ink)!important;font-size:13px}
+.hero-facts b{color:var(--forest)!important;font-family:'Playfair Display',serif;font-size:22px;margin-right:6px}
+.hero-art{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:30px 20px 26px;
+ background:radial-gradient(circle at 60% 40%,rgba(255,255,255,.55),rgba(255,255,255,0) 60%)}
+.stand{width:150px;height:216px;background:linear-gradient(160deg,#18294F,#0A1530);border-radius:3px 7px 7px 3px;
+ box-shadow:-7px 0 0 rgba(0,0,0,.28),0 16px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;
+ justify-content:center;text-align:center;padding:14px;transform:rotate(-2deg);margin-bottom:-2px;position:relative;z-index:2}
+.stand .star{color:#F2D9A0!important;font-size:14px;margin-bottom:10px}
+.stand .t{font-family:'Playfair Display',serif;color:#F2D9A0!important;font-size:23px;line-height:1.1}
+.stand .a{color:#F2D9A0!important;font-size:10px;letter-spacing:.22em;margin-top:16px}
+.stack{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;z-index:1}
+.bk{height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 18px;border-radius:2px;
+ font-family:'Playfair Display',serif;font-size:15px;box-shadow:0 4px 10px rgba(0,0,0,.22)}
+.bk i{font-family:'Inter',sans-serif;font-size:10.5px;font-style:normal;opacity:.85}
+.new-badge{position:absolute;right:7%;top:40%;width:104px;height:104px;border-radius:50%;background:var(--forest);
+ display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+ box-shadow:0 8px 20px rgba(0,0,0,.25);z-index:3;border:3px solid rgba(255,255,255,.7)}
+.new-badge b{font-family:'Playfair Display',serif;color:#fff!important;font-size:17px;line-height:1.1}
+.new-badge small{color:#fff!important;font-size:10.5px;margin-top:4px}
+@media(max-width:800px){.hero{grid-template-columns:1fr}.new-badge{right:3%;top:30%;width:84px;height:84px}.hero-copy{padding:30px 22px}}
+
+/* feature strip */
+.features{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border:1px solid var(--line);border-radius:14px;
+ padding:16px 6px;margin:0 0 6px;box-shadow:0 10px 26px rgba(27,42,34,.07)}
+.feat{display:flex;gap:12px;align-items:center;padding:4px 18px;border-right:1px solid var(--line)}
+.feat:last-child{border-right:none}
+.feat .ico{font-size:24px}
+.feat b{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)!important}
+.feat span{font-size:12.5px;color:var(--muted)!important}
+@media(max-width:800px){.features{grid-template-columns:1fr 1fr;row-gap:12px}.feat{border-right:none}}
 
 /* section titles */
-.sec{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px;border-bottom:2px solid var(--ink);padding-bottom:8px}
-.sec h2{margin:0;font-size:26px}
-.sec small{color:var(--muted)!important;font-size:14px}
+.sec{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:30px 0 14px}
+.sec h2{margin:2px 0 0;font-size:30px}
+.sec small{color:var(--muted)!important;font-size:13.5px}
+
+/* category tiles */
+.cat-tile{height:150px;border-radius:12px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;
+ justify-content:flex-start;text-align:center;box-shadow:0 8px 18px rgba(27,42,34,.18)}
+.cat-ico{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);
+ display:flex;align-items:center;justify-content:center;font-size:21px;margin:4px 0 auto}
+.cat-name{font-family:'Playfair Display',serif;font-size:13px;letter-spacing:.07em;font-weight:700;text-transform:uppercase;color:#fff!important;line-height:1.2}
+.cat-sub{font-size:11px;color:rgba(255,255,255,.8)!important;margin-top:3px}
 
 /* book card text */
 .meta-top{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:6px 0 4px}
-.pill{display:inline-block;background:#E4EEEA;color:var(--teal-d)!important;border-radius:6px;padding:3px 8px;font-size:11.5px;font-weight:600}
+.pill{display:inline-block;background:var(--cream);color:var(--forest)!important;border-radius:6px;padding:3px 8px;font-size:11.5px;font-weight:600}
 .badge{font-size:11.5px;font-weight:600;border-radius:6px;padding:3px 8px;display:inline-block}
-.badge.ok{background:#E4EEEA;color:#0A4442!important}
-.badge.low{background:#FCEBC8;color:#7A4B00!important}
-.badge.out{background:#F6DAD3;color:#8A2D17!important}
-.book-title{color:var(--ink)!important;font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.25;min-height:44px}
+.badge.ok{background:#E3EDE5;color:#1F3A2E!important}
+.badge.low{background:#F8E8C8;color:#7A4B00!important}
+.badge.out{background:#F4DAD2;color:#8A2D17!important}
+.book-title{color:var(--ink)!important;font-family:'Playfair Display',serif;font-size:17px;font-weight:600;line-height:1.25;min-height:44px}
 .book-author{color:var(--muted)!important;font-size:13px;min-height:34px}
-.book-price{color:var(--teal-d)!important;font-size:22px;font-weight:700;margin:4px 0 6px}
+.book-price{color:var(--forest)!important;font-size:21px;font-weight:700;margin:4px 0 6px}
 
 /* order summary rows */
 .sumrow{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
 .sumrow.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:6px;padding-top:10px;font-size:17px;font-weight:700}
 
-.footer{margin-top:36px;padding:24px;text-align:center;border-radius:14px;background:var(--ink);color:#fff!important}
+/* newsletter banner (a real form, styled) */
+[data-testid="stForm"]:has(.nl-marker){background:linear-gradient(100deg,#1F3A2E 0%,#2B4A3B 60%,#5C5A3E 100%)!important;border:none!important;
+ border-radius:16px!important;padding:30px 34px!important;margin-top:30px}
+[data-testid="stForm"]:has(.nl-marker) [data-testid="stMarkdownContainer"] *{color:#fff!important}
+[data-testid="stForm"]:has(.nl-marker) .nl-eyebrow{color:#E0C48C!important}
+[data-testid="stForm"]:has(.nl-marker) .stFormSubmitButton>button{background:var(--gold)!important;border-color:var(--gold)!important;color:#1B2A22!important}
+[data-testid="stForm"]:has(.nl-marker) .stFormSubmitButton>button *{color:#1B2A22!important}
+
+/* trust strip + footer */
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0 0;padding:22px 0;border-top:1px solid var(--line)}
+.trust div{text-align:center;font-size:13.5px;font-weight:600;color:var(--ink)!important}
+.trust small{display:block;font-weight:400;color:var(--muted)!important;font-size:12px;margin-top:2px}
+@media(max-width:800px){.trust{grid-template-columns:1fr 1fr}}
+.footer{margin-top:14px;padding:34px;border-radius:16px;background:var(--forest);color:#fff!important}
 .footer *{color:#fff!important}
+.foot-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:28px}
+.foot-grid h5{font-family:'Inter',sans-serif;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;margin:0 0 10px;color:#E0C48C!important}
+.foot-grid div div{font-size:13px;opacity:.85;margin:4px 0}
+.foot-brand{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;letter-spacing:.14em}
+.foot-bottom{margin-top:24px;padding-top:14px;border-top:1px solid rgba(255,255,255,.18);text-align:center;font-size:12px;opacity:.8}
+@media(max-width:800px){.foot-grid{grid-template-columns:1fr 1fr}}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
+# Category tiles shown on the home page: (subject, icon, tagline, background)
+CATEGORY_TILES = [
+    ("Fiction & Classics", "📖", "Explore Stories", "linear-gradient(145deg,#3B2F2A,#14100E)"),
+    ("Self-help & Ideas", "🌿", "Better Yourself", "linear-gradient(145deg,#2E4A3C,#101E17)"),
+    ("Business & Management", "💼", "Build Your Future", "linear-gradient(145deg,#2C3A55,#0F1626)"),
+    ("Thrillers & Mystery", "🔍", "Pulse-Racing Reads", "linear-gradient(145deg,#4A2A33,#170C10)"),
+    ("Fantasy & Young Adult", "🐉", "Worlds Beyond", "linear-gradient(145deg,#4A3A22,#1A1309)"),
+    ("Economics", "🏛️", "Timeless Thinking", "linear-gradient(145deg,#38403A,#121614)"),
+]
 
-def hero_html(book_count, categories, cart_total):
-    spines = ""
-    for i, cat in enumerate(categories[:10]):
-        color = SPINE_COLORS[i % len(SPINE_COLORS)]
-        text = "#14213D" if color in LIGHT_SPINES else "#fff"
-        height = 120 + (i * 37) % 95
-        spines += f'<div class="spine" style="background:{color};height:{height}px"><span style="color:{text}">{html.escape(cat)}</span></div>'
+
+def announce_html():
+    return ('<div class="announce"><span>🚚 Free standard delivery on every order</span>'
+            '<span>✦ Books that inspire, stories that stay.</span>'
+            '<span>💬 PageNest Help is in the sidebar</span></div>')
+
+
+def hero_html(book_count, subject_count, cart_total, show_cta):
+    cta = ""
+    if show_cta:
+        cta = ('<div class="hero-cta"><a class="btn-solid" href="#browse-all">Shop now &rarr;</a>'
+               '<a class="btn-line" href="#categories">Explore collection</a></div>')
     return f"""
 <div class="hero">
-  <div>
-    <h1>Find the book you'll finish.</h1>
-    <p>Textbooks, exam guides, business classics and bestsellers, picked for students and curious readers.</p>
+  <div class="hero-copy">
+    <div class="eyebrow">Discover. Read. Grow.</div>
+    <h1>Books for every<br>mind &amp; moment.</h1>
+    <p>Textbooks, exam guides, business classics and bestsellers. Your next favourite story is just a page away.</p>
+    {cta}
     <div class="hero-facts">
       <span><b>{book_count}</b>books</span>
-      <span><b>{len(categories)}</b>subjects</span>
+      <span><b>{subject_count}</b>subjects</span>
       <span><b>{cart_total}</b>in your cart</span>
     </div>
   </div>
-  <div class="shelf">{spines}</div>
+  <div class="hero-art">
+    <div class="stand"><div class="star">★</div><div class="t">The Midnight Library</div><div class="a">MATT HAIG</div></div>
+    <div class="stack">
+      <div class="bk" style="width:270px;background:#EFE3CC;color:#1B2A22"><span>Atomic Habits</span><i>James Clear</i></div>
+      <div class="bk" style="width:290px;background:#1B2A22;color:#EBDDBB"><span>The Alchemist</span><i>Paulo Coelho</i></div>
+      <div class="bk" style="width:262px;background:#E4CFA4;color:#1B2A22"><span>Ikigai</span><i>García &amp; Miralles</i></div>
+      <div class="bk" style="width:280px;background:#14213D;color:#F2D9A0"><span>The Psychology of Money</span><i>Morgan Housel</i></div>
+    </div>
+    <div class="new-badge"><b>New<br>Arrivals</b><small>This Week!</small></div>
+  </div>
 </div>"""
 
 
-def section_title(title, note=""):
+def features_html():
+    items = [
+        ("🚚", "Free Delivery", "Standard shipping is free"),
+        ("🎁", "Bundle Savings", "10% off every bundle"),
+        ("🛡️", "Demo Checkout", "No real payments taken"),
+        ("🏷️", "Exclusive Offers", "Use code PAGENEST10"),
+    ]
+    cells = "".join(f'<div class="feat"><div class="ico">{i}</div><div><b>{html.escape(t)}</b><span>{html.escape(s)}</span></div></div>'
+                    for i, t, s in items)
+    return f'<div class="features">{cells}</div>'
+
+
+def section_title(title, note="", eyebrow="", anchor=""):
     small = f"<small>{html.escape(note)}</small>" if note else ""
-    return f'<div class="sec"><h2>{html.escape(title)}</h2>{small}</div>'
+    eb = f'<div class="eyebrow">{html.escape(eyebrow)}</div>' if eyebrow else ""
+    aid = f' id="{html.escape(anchor)}"' if anchor else ""
+    return f'<div class="sec"{aid}><div>{eb}<h2>{html.escape(title)}</h2></div>{small}</div>'
+
+
+def trust_html():
+    items = [("Handpicked Books", "Chosen for students and readers"), ("Easy Browsing", "Search, filter and sort"),
+             ("Student Bundles", "Starter packs for every course"), ("Stories That Stay", "Books worth finishing")]
+    cells = "".join(f'<div>{html.escape(t)}<small>{html.escape(s)}</small></div>' for t, s in items)
+    return f'<div class="trust">{cells}</div>'
+
+
+def footer_html():
+    return """<div class="footer">
+  <div class="foot-grid">
+    <div><div class="foot-brand">PAGENEST</div><div style="font-size:13px;opacity:.85;margin-top:8px">We believe books have the power to change lives.<br>Find your next idea. Discover your next chapter.</div></div>
+    <div><h5>Shop</h5><div><div>Catalogue</div><div>Book Bundles</div><div>Bestsellers</div><div>Shopping Cart</div></div></div>
+    <div><h5>Help</h5><div><div>Delivery options</div><div>Discount code PAGENEST10</div><div>Find a Book</div><div>PageNest Help (sidebar)</div></div></div>
+    <div><h5>About</h5><div><div>About PageNest</div><div>Demo bookstore</div><div>Sample prices and inventory</div></div></div>
+  </div>
+  <div class="foot-bottom">PageNest | Books &amp; Learning · Demo bookstore · No real payments processed</div>
+</div>"""
 
 
 def stock_badge(stock):
@@ -335,6 +465,7 @@ if "catalogue_page" not in st.session_state: st.session_state.catalogue_page = 0
 if "last_order" not in st.session_state: st.session_state.last_order = None
 if "completed_order" not in st.session_state: st.session_state.completed_order = None
 if "find_book_title" not in st.session_state: st.session_state.find_book_title = ""
+if "tile_cat" not in st.session_state: st.session_state.tile_cat = None
 if "support_messages" not in st.session_state:
     st.session_state.support_messages = [{"role":"assistant","content":"Hi! I'm PageNest Help. Ask me about books, bundles, discounts, checkout, or unavailable titles. This demo doesn't process payments."}]
 
@@ -424,7 +555,7 @@ def show_cover(book, search_link=False):
     if cover:
         st.image(cover,use_container_width=True)
     else:
-        st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#E4EEEA;border-radius:8px;font-size:48px">📚</div>',unsafe_allow_html=True)
+        st.markdown('<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:#F3ECDF;border-radius:8px;font-size:48px">📚</div>',unsafe_allow_html=True)
         if search_link:
             q=urllib.parse.quote(f'{book["title"]} {book["author"]} book cover')
             st.markdown(f"[Search for the actual cover](https://www.google.com/search?tbm=isch&q={q})")
@@ -622,8 +753,17 @@ with st.sidebar:
         st.session_state.support_messages.append({"role":"assistant","content":reply})
         st.rerun()
 
-# ----------------------- GLOBAL HERO -----------------------
-st.markdown(hero_html(len(BOOKS), sorted(set(b["category"] for b in BOOKS)), cart_count()), unsafe_allow_html=True)
+# ----------------------- TOP BAR, NAV & HERO -----------------------
+st.markdown(announce_html(), unsafe_allow_html=True)
+
+nav_cols = st.columns([2.4, 1, 1, 1.3, 1, 1.4])
+with nav_cols[0]:
+    st.markdown('<span class="topnav-marker"></span><div class="brand">PAGENEST<small>BOOKS &amp; LEARNING</small></div>', unsafe_allow_html=True)
+for _col, (_label, _target) in zip(nav_cols[1:5], [("Home","Catalogue"),("Bundles","Book Bundles"),("Find a Book","Find a Book"),("About","About PageNest")]):
+    if _col.button(_label, key=f"topnav_{_target}", use_container_width=True): go(_target)
+if nav_cols[5].button(f"🛒 Cart ({cart_count()})", key="topnav_cart", use_container_width=True): go("Shopping Cart")
+
+st.markdown(hero_html(len(BOOKS), len(set(b["category"] for b in BOOKS)), cart_count(), st.session_state.page=="Catalogue"), unsafe_allow_html=True)
 
 # ----------------------- FILTERED CATALOGUE -----------------------
 filtered=BOOKS.copy()
@@ -631,13 +771,31 @@ search_tokens=norm(search_query).split()
 if search_tokens:
     filtered=[b for b in filtered if all(t in norm(b["title"]+" "+b["author"]+" "+b["category"]) for t in search_tokens)]
 if selected_category!="All Subjects": filtered=[b for b in filtered if b["category"]==selected_category]
+if st.session_state.tile_cat: filtered=[b for b in filtered if b["category"]==st.session_state.tile_cat]
 filtered=[b for b in filtered if b["price"]<=price_limit]
 if availability=="In Stock": filtered=[b for b in filtered if b["stock"]>0]
 elif availability=="Out of Stock": filtered=[b for b in filtered if b["stock"]==0]
 
 # ----------------------- CATALOGUE PAGE -----------------------
 if st.session_state.page=="Catalogue":
-    st.markdown(section_title("Featured bestsellers","Reader favourites right now"),unsafe_allow_html=True)
+    st.markdown(features_html(), unsafe_allow_html=True)
+
+    # Browse by category tiles
+    st.markdown(section_title("Find your next read","Pick a subject to filter the catalogue",eyebrow="Browse by category",anchor="categories"),unsafe_allow_html=True)
+    tile_cols=st.columns(6)
+    for idx,(col,(tname,ticon,ttag,tbg)) in enumerate(zip(tile_cols,CATEGORY_TILES)):
+        n=sum(1 for b in BOOKS if b["category"]==tname)
+        with col:
+            st.markdown(
+                f'<div class="cat-tile" style="background:{tbg}"><div class="cat-ico">{ticon}</div>'
+                f'<div class="cat-name">{html.escape(tname)}</div><div class="cat-sub">{html.escape(ttag)} · {n} books</div></div>',
+                unsafe_allow_html=True)
+            if st.button("Browse",key=f"tile_{idx}",use_container_width=True):
+                st.session_state.tile_cat=tname
+                st.session_state.catalogue_page=0
+                st.rerun()
+
+    st.markdown(section_title("Readers' all-time favourites","Reader favourites right now",eyebrow="Bestsellers",anchor="bestsellers"),unsafe_allow_html=True)
 
     featured_titles = [
         ("Rich Dad Poor Dad", "Build your financial mindset", "Money & Personal Finance"),
@@ -696,7 +854,7 @@ if st.session_state.page=="Catalogue":
 
     # Sorting + page reset whenever any filter changes
     sort_by=st.selectbox("Sort by",["Recommended","Price: Low to High","Price: High to Low","Title A–Z"],key="sort_catalogue")
-    filter_sig=(search_query,selected_category,price_limit,availability,sort_by)
+    filter_sig=(search_query,selected_category,price_limit,availability,sort_by,st.session_state.tile_cat)
     if st.session_state.get("filter_sig")!=filter_sig:
         st.session_state.filter_sig=filter_sig
         st.session_state.catalogue_page=0
@@ -710,7 +868,15 @@ if st.session_state.page=="Catalogue":
     first=cur*PER_PAGE
     page_books=filtered[first:first+PER_PAGE]
     note=f"Showing {first+1}–{first+len(page_books)} of {len(filtered)} books" if filtered else "No matching books"
-    st.markdown(section_title("Browse all books",note),unsafe_allow_html=True)
+    st.markdown(section_title("Browse all books",note,eyebrow="The full collection",anchor="browse-all"),unsafe_allow_html=True)
+
+    if st.session_state.tile_cat:
+        t1,t2=st.columns([4,1])
+        t1.info(f"Showing subject: {st.session_state.tile_cat}")
+        if t2.button("Show all subjects",key="clear_tile",use_container_width=True):
+            st.session_state.tile_cat=None
+            st.session_state.catalogue_page=0
+            st.rerun()
 
     def pager(key):
         if total_pages<=1: return
@@ -732,6 +898,20 @@ if st.session_state.page=="Catalogue":
         for col,book in zip(cols,page_books[start:start+3]):
             with col: render_book_card(book,"catalogue")
     pager("bottom")
+
+    # Newsletter banner (demo: nothing is stored or sent)
+    with st.form("newsletter_form",clear_on_submit=True):
+        st.markdown('<span class="nl-marker"></span><div class="eyebrow nl-eyebrow">Be part of our reading community</div>'
+                    '<h3>Get updates, exclusive deals &amp; book picks</h3>'
+                    '<p>Subscribe to hear about new arrivals and offers. This is a demo; your email is not stored.</p>',unsafe_allow_html=True)
+        nl1,nl2=st.columns([3,1])
+        nl_email=nl1.text_input("Email",placeholder="Enter your email",label_visibility="collapsed")
+        nl_submit=nl2.form_submit_button("Subscribe",use_container_width=True)
+    if nl_submit:
+        if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+",nl_email.strip()):
+            st.success("Thanks for subscribing! (Demo only: no email was saved.)")
+        else:
+            st.error("Please enter a valid email address.")
 
 # ----------------------- BOOK DETAILS -----------------------
 elif st.session_state.page=="Book Details":
@@ -774,7 +954,7 @@ elif st.session_state.page=="Book Details":
 
 # ----------------------- BUNDLES -----------------------
 elif st.session_state.page=="Book Bundles":
-    st.markdown(section_title("Curated book bundles","Each bundle gets 10% off"),unsafe_allow_html=True)
+    st.markdown(section_title("Curated book bundles","Each bundle gets 10% off",eyebrow="Starter packs"),unsafe_allow_html=True)
     st.write("Useful starter packs for different courses and exams. Each bundle gets 10% off its listed individual prices.")
     bundles=[
       ("Commerce & BBA Starter Bundle","For introductory commerce and BBA courses",["Principles of Economics","Principles of Management","Financial Accounting","Business Mathematics"]),
@@ -1013,7 +1193,7 @@ elif st.session_state.page=="Find a Book":
 
 # ----------------------- ABOUT -----------------------
 elif st.session_state.page=="About PageNest":
-    st.markdown(section_title("About PageNest","A demo bookstore for students and curious readers"),unsafe_allow_html=True)
+    st.markdown(section_title("About PageNest","A demo bookstore for students and curious readers",eyebrow="Our story"),unsafe_allow_html=True)
     st.write("PageNest brings textbooks, competitive exam guides, business classics and popular reads into one place. Prices and stock are sample data, and no real payments are processed.")
     a1,a2,a3=st.columns(3)
     with a1:
@@ -1033,7 +1213,6 @@ elif st.session_state.page=="About PageNest":
         st.write("Use Find a Book to search online sellers and nearby bookstores, or ask PageNest Help in the sidebar.")
         if st.button("Go to Find a Book"): go("Find a Book")
 
-# ----------------------- FOOTER -----------------------
-st.markdown("""<div class="footer"><strong>PageNest | Books &amp; Learning</strong><br>
-Find your next idea. Discover your next chapter.<br>
-<span style="font-size:12px;">Demo bookstore · Sample prices and inventory · No real payments processed</span></div>""",unsafe_allow_html=True)
+# ----------------------- TRUST STRIP & FOOTER -----------------------
+st.markdown(trust_html(), unsafe_allow_html=True)
+st.markdown(footer_html(), unsafe_allow_html=True)
